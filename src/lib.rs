@@ -1,96 +1,108 @@
 
-use std::collections::hash_map::HashMap;
-use std::hash::Hash;
+#[macro_use]
+extern crate downcast_rs;
 
-trait Key: Copy + Eq + Hash {
-    fn new() -> Self;
+use std::fmt::Debug;
+
+use downcast_rs::Downcast;
+
+trait Key<E: Entry + 'static>: Debug + Downcast {
+    fn same_as(&self, other: &dyn Key<E>) -> bool;
 }
 
+impl_downcast!(Key<E> where E: Entry);
+
 trait Entry {
-    type PrimaryKey: Key;
     //fn get_fields(&self) -> ;
 }
 
 trait Table<E: Entry> {
     type Key;
-    fn insert(&mut self, entry: E) -> E::PrimaryKey;
-    fn lookup(&self, key: E::PrimaryKey) -> Option<&E>;
+    fn insert(&mut self, entry: E) -> Box<dyn Key<E>>;
+    fn lookup(&self, key: &dyn Key<E>) -> Option<&E>;
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct UserKey;
-impl Key for UserKey {
-    fn new() -> UserKey {
-        UserKey { }
-    }
+#[derive(Debug)]
+struct Department {
+    name: String,
+    abreviation: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct DepartmentKey;
-impl Key for DepartmentKey {
-    fn new() -> DepartmentKey {
-        DepartmentKey { }
-    }
+impl Entry for Department {
+
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 struct User {
     first_name: String,
     last_name: String,
-    department: DepartmentKey,
+    department: Box<dyn Key<Department>>,
 }
 
 impl Entry for User {
-    type PrimaryKey = UserKey;
+
 }
 
-struct HashTable<E: Entry> {
-    map: HashMap<E::PrimaryKey, E>
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct VecTableKey {
+    id: usize,
 }
 
-impl<E: Entry> HashTable<E> {
-    fn new() -> HashTable<E> {
-        HashTable {
-            map: HashMap::new()
+impl<E: Entry + 'static> Key<E> for VecTableKey {
+    fn same_as(&self, other: &dyn Key<E>) -> bool {
+        if let Some(other_key) = other.downcast_ref::<VecTableKey>() {
+            self.id == other_key.id
+        } else {
+            false
         }
     }
 }
 
-impl<E: Entry> Table<E> for HashTable<E> {
+struct VecTable<E: Entry> {
+    vector: Vec<E>,
+}
+
+impl<E: Entry> VecTable<E> {
+    fn new() -> VecTable<E> {
+        VecTable {
+            vector: Vec::new()
+        }
+    }
+}
+
+impl<E: Entry + 'static> Table<E> for VecTable<E> {
     type Key = ();
-    fn insert(&mut self, entry: E) -> E::PrimaryKey {
-        let key = E::PrimaryKey::new();
-        self.map.insert(key, entry);
-        key
+    fn insert(&mut self, entry: E) -> Box<dyn Key<E>> {
+        self.vector.push(entry);
+        Box::new(VecTableKey {
+            id: self.vector.len()-1
+        })
     }
 
-    fn lookup(&self, key: E::PrimaryKey) -> Option<&E> {
-        self.map.get(&key)
+    fn lookup(&self, key: &dyn Key<E>) -> Option<&E> {
+        if let Some(key) = key.downcast_ref::<VecTableKey>() {
+            self.vector.get(key.id)
+        } else {
+            None
+        }
     }
 }
 
 #[test]
-fn test_hashtable() {
+fn test_vectable() {
 
-    let mut table: HashTable<User> = HashTable::new();
+    let mut department_table: VecTable<Department> = VecTable::new();
 
-    let key = table.insert(
-        User {
-            first_name: "Tim".to_owned(),
-            last_name: "Hollabaugh".to_owned(),
-            department: DepartmentKey { },
-        }
-    );
+    let ece_department = Department {
+        name: "Electrical and Computer Engineering".to_string(),
+        abreviation: "ECE".to_string(),
+    };
 
-    let user = table.lookup(key).unwrap();
+    let ece_key = department_table.insert(ece_department);
 
-    assert_eq!(
-        *user,
-        User {
-            first_name: "Tim".to_owned(),
-            last_name: "Hollabaugh".to_owned(),
-            department: DepartmentKey { },
-        }
-    );
+    let ece_department_after = department_table.lookup(&*ece_key).unwrap();
+
+    assert_eq!(ece_department_after.name, "Electrical and Computer Engineering".to_string());
+    assert_eq!(ece_department_after.abreviation, "ECE".to_string());
 }
 
