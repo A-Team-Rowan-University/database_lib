@@ -1,0 +1,6 @@
+[package]
+name = "database-lib"
+version = "0.1.0"
+authors = ["Tim <timothyhollabaugh@gmail.com>"]
+
+[dependencies]
