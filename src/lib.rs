@@ -2,25 +2,9 @@
 #[macro_use]
 extern crate downcast_rs;
 
-use std::fmt::Debug;
+pub mod interface;
 
-use downcast_rs::Downcast;
-
-trait Key<E: Entry + 'static>: Debug + Downcast {
-    fn same_as(&self, other: &dyn Key<E>) -> bool;
-}
-
-impl_downcast!(Key<E> where E: Entry);
-
-trait Entry {
-    //fn get_fields(&self) -> ;
-}
-
-trait Table<E: Entry> {
-    type Key;
-    fn insert(&mut self, entry: E) -> Box<dyn Key<E>>;
-    fn lookup(&self, key: &dyn Key<E>) -> Option<&E>;
-}
+use interface::*;
 
 #[derive(Debug)]
 struct Department {
@@ -49,7 +33,7 @@ struct VecTableKey {
 }
 
 impl<E: Entry + 'static> Key<E> for VecTableKey {
-    fn same_as(&self, other: &dyn Key<E>) -> bool {
+    fn same_as(&self, other: Box<dyn Key<E>>) -> bool {
         if let Some(other_key) = other.downcast_ref::<VecTableKey>() {
             self.id == other_key.id
         } else {
@@ -79,13 +63,21 @@ impl<E: Entry + 'static> Table<E> for VecTable<E> {
         })
     }
 
-    fn lookup(&self, key: &dyn Key<E>) -> Option<&E> {
+    fn lookup(&self, key: Box<dyn Key<E>>) -> Option<&E> {
         if let Some(key) = key.downcast_ref::<VecTableKey>() {
             self.vector.get(key.id)
         } else {
             None
         }
     }
+}
+
+#[test]
+fn test_vectable_key_same_as() {
+    let key_1: Box<dyn Key<Department>> = Box::new(VecTableKey { id: 1 });
+    let key_2: Box<dyn Key<Department>> = Box::new(VecTableKey { id: 1 });
+
+    assert!(key_1.same_as(key_2));
 }
 
 #[test]
@@ -100,7 +92,7 @@ fn test_vectable() {
 
     let ece_key = department_table.insert(ece_department);
 
-    let ece_department_after = department_table.lookup(&*ece_key).unwrap();
+    let ece_department_after = department_table.lookup(ece_key).unwrap();
 
     assert_eq!(ece_department_after.name, "Electrical and Computer Engineering".to_string());
     assert_eq!(ece_department_after.abreviation, "ECE".to_string());
