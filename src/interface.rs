@@ -1,7 +1,4 @@
-#[deny(missing_doc)]
-
 use std::fmt::Debug;
-
 use downcast_rs::Downcast;
 
 /**
