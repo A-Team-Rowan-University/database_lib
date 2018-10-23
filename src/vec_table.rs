@@ -17,6 +17,11 @@ impl<E: Entry + 'static> Key<E> for VecTableKey {
     }
 }
 
+/**
+ *  A table implemented as a vector. Inserting will add to the end of the vector, and keys are the
+ *  index. Removing will probably do nothing, so the vec will keep expanding but never shrink.
+ *  Intended for testing purposes only.
+ */
 pub struct VecTable<E: Entry> {
     vector: Vec<E>,
 }
