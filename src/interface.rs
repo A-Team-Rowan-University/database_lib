@@ -24,7 +24,6 @@ pub trait Entry {
 }
 
 pub trait Table<E: Entry> {
-    type Key;
     fn insert(&mut self, entry: E) -> Box<dyn Key<E>>;
     fn lookup(&self, key: Box<dyn Key<E>>) -> Option<&E>;
 }

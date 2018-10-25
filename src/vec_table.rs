@@ -35,7 +35,7 @@ impl<E: Entry> VecTable<E> {
 }
 
 impl<E: Entry + 'static> Table<E> for VecTable<E> {
-    type Key = ();
+
     fn insert(&mut self, entry: E) -> Box<dyn Key<E>> {
         self.vector.push(entry);
         Box::new(VecTableKey {
