@@ -1,32 +1,37 @@
+
+use std::marker::PhantomData;
+
 use interface::Entry;
 use interface::Key;
 use interface::Table;
 
+/**
+ *  A key for a VecTable
+ *
+ *  It stores an index into the vector for the entry this key goes with
+*/
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct VecTableKey {
+    // The index into the vector for this entry
     id: usize,
 }
 
-impl<E: Entry + 'static> Key<E> for VecTableKey {
-    fn same_as(&self, other: Box<dyn Key<E>>) -> bool {
-        if let Some(other_key) = other.downcast_ref::<VecTableKey>() {
-            self.id == other_key.id
-        } else {
-            false
-        }
-    }
-}
+impl<E: Entry> Key<E> for VecTableKey { }
 
 /**
  *  A table implemented as a vector. Inserting will add to the end of the vector, and keys are the
  *  index. Removing will probably do nothing, so the vec will keep expanding but never shrink.
- *  Intended for testing purposes only.
- */
+ *  Intended for testing and example purposes only.
+*/
 pub struct VecTable<E: Entry> {
     vector: Vec<E>,
 }
 
 impl<E: Entry> VecTable<E> {
+
+    /**
+     *  Gives a new `VecTable` with an empty vector
+     */
     pub fn new() -> VecTable<E> {
         VecTable {
             vector: Vec::new()
@@ -34,21 +39,45 @@ impl<E: Entry> VecTable<E> {
     }
 }
 
-impl<E: Entry + 'static> Table<E> for VecTable<E> {
+impl<E: Entry> Table<E> for VecTable<E> {
 
-    fn insert(&mut self, entry: E) -> Box<dyn Key<E>> {
+    type Key = VecTableKey;
+
+    fn insert(&mut self, entry: E) -> Self::Key {
         self.vector.push(entry);
-        Box::new(VecTableKey {
+        VecTableKey {
             id: self.vector.len()-1
-        })
+        }
     }
 
-    fn lookup(&self, key: Box<dyn Key<E>>) -> Option<&E> {
-        if let Some(key) = key.downcast_ref::<VecTableKey>() {
-            self.vector.get(key.id)
-        } else {
-            None
-        }
+    fn lookup(&self, key: Self::Key) -> Option<E> {
+        self.vector.get(key.id).map(|e| e.clone())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TestTableKey {
+    // The index into the vector for this entry
+    id: usize,
+}
+
+impl<E: Entry> Key<E> for TestTableKey { }
+
+pub struct TestTable<E: Entry> {
+    // Needed since we do not actually use the E type parameter
+    entry_type: PhantomData<E>
+}
+
+impl<E: Entry> Table<E> for TestTable<E> {
+
+    type Key = TestTableKey;
+
+    fn insert(&mut self, entry: E) -> Self::Key {
+        unimplemented!()
+    }
+
+    fn lookup(&self, key: Self::Key) -> Option<E> {
+        unimplemented!()
     }
 }
 
@@ -56,17 +85,16 @@ impl<E: Entry + 'static> Table<E> for VecTable<E> {
 mod tests {
 
     use tests::Department;
-    use interface::Key;
     use interface::Table;
     use vec_table::VecTableKey;
     use vec_table::VecTable;
 
     #[test]
-    fn test_vectable_key_same_as() {
-        let key_1: Box<dyn Key<Department>> = Box::new(VecTableKey { id: 1 });
-        let key_2: Box<dyn Key<Department>> = Box::new(VecTableKey { id: 1 });
+    fn test_vectable_key_partial_eq() {
+        let key_1 = VecTableKey { id: 1 };
+        let key_2 = VecTableKey { id: 1 };
 
-        assert!(key_1.same_as(key_2));
+        assert!(key_1 == key_2);
     }
 
     #[test]
@@ -87,4 +115,3 @@ mod tests {
         assert_eq!(ece_department_after.abreviation, "ECE".to_string());
     }
 }
-

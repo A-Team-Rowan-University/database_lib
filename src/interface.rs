@@ -1,5 +1,4 @@
 use std::fmt::Debug;
-use downcast_rs::Downcast;
 
 /**
  *  Key for an item in a table.
@@ -10,21 +9,27 @@ use downcast_rs::Downcast;
  *
  *  The Downcast trait allows us to turn a Box<dyn Key> into the concrete type that it came from
  */
-pub trait Key<E: Entry + 'static>: Debug + Downcast {
-    fn same_as(&self, other: Box<dyn Key<E>>) -> bool;
+pub trait Key<E: Entry>: Debug + PartialEq { }
+
+pub enum Value {
+    Integer(i32),
+    Float(f32),
+    String(String),
 }
 
-impl_downcast!(Key<E> where E: Entry);
-
 /**
- * Entry in a table. Things that implement this are stored in the database
+ *  Entry in a table. Things that implement this are stored in the database
  */
-pub trait Entry {
-    //fn get_fields(&self) -> ;
+pub trait Entry: Clone {
+    fn from_fields(values: &[Value]) -> Result<Self, String>;
+    fn get_field_names() -> Vec<String>;
+    fn get_fields(&self) -> Vec<Value>;
 }
 
 pub trait Table<E: Entry> {
-    fn insert(&mut self, entry: E) -> Box<dyn Key<E>>;
-    fn lookup(&self, key: Box<dyn Key<E>>) -> Option<&E>;
+    type Key: Key<E>;
+    fn insert(&mut self, entry: E) -> Self::Key;
+    fn lookup(&self, key: Self::Key) -> Option<E>;
 }
+
 
