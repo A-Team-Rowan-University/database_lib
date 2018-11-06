@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use downcast_rs::Downcast;
+extern crate mysql as my;
 
 /**
  *  Key for an item in a table.
@@ -21,11 +22,13 @@ impl_downcast!(Key<E> where E: Entry);
  */
 pub trait Entry {
     //fn get_fields(&self) -> ;
+	fn from_mysql(data:&Vec<my::Value>) -> Self;
+	fn to_vec_string(&self) -> Vec<String>;
 }
 
 pub trait Table<E: Entry> {
     type Key;
     fn insert(&mut self, entry: E) -> Box<dyn Key<E>>;
-    fn lookup(&self, key: Box<dyn Key<E>>) -> Option<&E>;
+    fn lookup(&self, key: Box<dyn Key<E>>) -> Option<E>;
 }
 

@@ -5,19 +5,20 @@
 
 use interface::Entry;
 use interface::Key;
-
+extern crate mysql as my;
 
 /**
  *  Test entry with no keys for anything
  */
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct Department {
     pub name: String,
     pub abreviation: String,
 }
 
 impl Entry for Department {
-
+	fn to_vec_string(&self)->Vec<String>{unimplemented!()}
+	fn from_mysql(_data: &Vec<my::Value>)->Department{unimplemented!()}
 }
 
 /**
@@ -31,7 +32,8 @@ pub struct User {
 }
 
 impl Entry for User {
-
+	fn to_vec_string(&self)->Vec<String>{unimplemented!()}
+	fn from_mysql(_data: &Vec<my::Value>)->User{unimplemented!()}
 }
 
 

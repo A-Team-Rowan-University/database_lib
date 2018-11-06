@@ -33,7 +33,7 @@ impl<E: Entry> VecTable<E> {
         }
     }
 }
-
+/*
 impl<E: Entry + 'static> Table<E> for VecTable<E> {
     type Key = ();
     fn insert(&mut self, entry: E) -> Box<dyn Key<E>> {
@@ -43,15 +43,16 @@ impl<E: Entry + 'static> Table<E> for VecTable<E> {
         })
     }
 
-    fn lookup(&self, key: Box<dyn Key<E>>) -> Option<&E> {
+    fn lookup(&self, key: Box<dyn Key<E>>) -> Option<E> {
         if let Some(key) = key.downcast_ref::<VecTableKey>() {
-            self.vector.get(key.id)
+            let entry = self.vector.get(key.id).unwrap();
+			Some(entry)
         } else {
             None
         }
     }
 }
-
+*/
 #[cfg(test)]
 mod tests {
 
@@ -68,8 +69,8 @@ mod tests {
 
         assert!(key_1.same_as(key_2));
     }
-
-    #[test]
+/*
+    #[test]	
     fn test_vectable() {
 
         let mut department_table: VecTable<Department> = VecTable::new();
@@ -86,5 +87,6 @@ mod tests {
         assert_eq!(ece_department_after.name, "Electrical and Computer Engineering".to_string());
         assert_eq!(ece_department_after.abreviation, "ECE".to_string());
     }
+	*/
 }
 
