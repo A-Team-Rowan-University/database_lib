@@ -22,6 +22,7 @@ impl<E: Entry> Key<E> for VecTableKey { }
  *  index. Removing will probably do nothing, so the vec will keep expanding but never shrink.
  *  Intended for testing and example purposes only.
 */
+#[derive(Default)]
 pub struct VecTable<E: Entry> {
     vector: Vec<(usize, E)>,
     next_key: usize,
@@ -48,17 +49,17 @@ impl<E: Entry> Table<E> for VecTable<E> {
         self.vector.push((self.next_key, entry));
         let key = VecTableKey { id: self.next_key };
         self.next_key += 1;
-        return key;
+        key
     }
 
     fn lookup(&self, key: Self::Key) -> Option<E> {
-        for (k, e) in self.vector.iter() {
+        for (k, e) in &self.vector {
             if key.id == *k {
                 return Some(e.clone())
             }
         }
 
-        return None
+        None
     }
 
     fn search(&self, field_name: E::FieldNames, field_value: Value) -> Vec<(Self::Key, E)> {
