@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::str::FromStr;
 
 /**
  *  Key for an item in a table.
@@ -18,7 +19,7 @@ pub enum Value {
     String(String),
 }
 
-pub trait FieldName: PartialEq + Copy + Clone + Debug {}
+pub trait FieldName: PartialEq + Copy + Clone + Debug + FromStr + ToString {}
 
 /**
  *  Entry in a table. Things that implement this are stored in the database
