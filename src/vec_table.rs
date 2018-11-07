@@ -1,9 +1,8 @@
 
-use std::marker::PhantomData;
-
 use interface::Entry;
 use interface::Key;
 use interface::Table;
+use interface::Value;
 
 /**
  *  A key for a VecTable
@@ -24,7 +23,8 @@ impl<E: Entry> Key<E> for VecTableKey { }
  *  Intended for testing and example purposes only.
 */
 pub struct VecTable<E: Entry> {
-    vector: Vec<E>,
+    vector: Vec<(usize, E)>,
+    next_key: usize,
 }
 
 impl<E: Entry> VecTable<E> {
@@ -34,7 +34,8 @@ impl<E: Entry> VecTable<E> {
      */
     pub fn new() -> VecTable<E> {
         VecTable {
-            vector: Vec::new()
+            vector: Vec::new(),
+            next_key: 0,
         }
     }
 }
@@ -44,40 +45,54 @@ impl<E: Entry> Table<E> for VecTable<E> {
     type Key = VecTableKey;
 
     fn insert(&mut self, entry: E) -> Self::Key {
-        self.vector.push(entry);
-        VecTableKey {
-            id: self.vector.len()-1
+        self.vector.push((self.next_key, entry));
+        let key = VecTableKey { id: self.next_key };
+        self.next_key += 1;
+        return key;
+    }
+
+    fn lookup(&self, key: Self::Key) -> Option<E> {
+        for (k, e) in self.vector.iter() {
+            if key.id == *k {
+                return Some(e.clone())
+            }
+        }
+
+        return None
+    }
+
+    fn search(&self, field_name: E::FieldNames, field_value: Value) -> Vec<(Self::Key, E)> {
+        self.vector.iter().fold(Vec::new(), |mut v, (id, e)| {
+            if let Some(value) = e.get_field(field_name) {
+                if value == field_value {
+                    v.push((VecTableKey{id: *id}, e.clone()));
+                }
+            }
+
+            v
+        })
+    }
+
+    fn remove(&mut self, key: Self::Key) -> Result<(), String> {
+        let index = self.vector.iter().fold(None, |i, (id, _e)| {
+            if *id == key.id {
+                Some(*id)
+            } else {
+                i
+            }
+        });
+
+
+        if let Some(index) = index {
+            self.vector.remove(index);
+            Ok(())
+        } else {
+            Err("Key not in table".to_string())
         }
     }
 
-    fn lookup(&self, key: Self::Key) -> Option<E> {
-        self.vector.get(key.id).map(|e| e.clone())
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct TestTableKey {
-    // The index into the vector for this entry
-    id: usize,
-}
-
-impl<E: Entry> Key<E> for TestTableKey { }
-
-pub struct TestTable<E: Entry> {
-    // Needed since we do not actually use the E type parameter
-    entry_type: PhantomData<E>
-}
-
-impl<E: Entry> Table<E> for TestTable<E> {
-
-    type Key = TestTableKey;
-
-    fn insert(&mut self, entry: E) -> Self::Key {
-        unimplemented!()
-    }
-
-    fn lookup(&self, key: Self::Key) -> Option<E> {
-        unimplemented!()
+    fn contains(&self, key: Self::Key) -> bool {
+        self.vector.iter().any(|(k, _e)| *k == key.id)
     }
 }
 
@@ -85,7 +100,9 @@ impl<E: Entry> Table<E> for TestTable<E> {
 mod tests {
 
     use tests::Department;
+    use tests::DepartmentFields;
     use interface::Table;
+    use interface::Value;
     use vec_table::VecTableKey;
     use vec_table::VecTable;
 
@@ -113,5 +130,69 @@ mod tests {
 
         assert_eq!(ece_department_after.name, "Electrical and Computer Engineering".to_string());
         assert_eq!(ece_department_after.abreviation, "ECE".to_string());
+    }
+
+    #[test]
+    fn test_search() {
+
+        let mut department_table: VecTable<Department> = VecTable::new();
+
+        let ece_key = department_table.insert(Department {
+            name: "Electrical and Computer Engineering".to_string(),
+            abreviation: "ECE".to_string(),
+        });
+
+        let _me_key = department_table.insert(Department {
+            name: "Mechanical Engineering".to_string(),
+            abreviation: "ME".to_string(),
+        });
+
+        let (found_key, _found_entry) = department_table.search(
+            DepartmentFields::Abreviation,
+            Value::String("ECE".to_string())
+        ).pop().unwrap();
+
+        assert_eq!(ece_key, found_key);
+    }
+
+    #[test]
+    fn test_vectable_contains() {
+
+        let mut department_table: VecTable<Department> = VecTable::new();
+
+        let ece_key = department_table.insert(Department {
+            name: "Electrical and Computer Engineering".to_string(),
+            abreviation: "ECE".to_string(),
+        });
+
+        let me_key = department_table.insert(Department {
+            name: "Mechanical Engineering".to_string(),
+            abreviation: "ME".to_string(),
+        });
+
+        assert!(department_table.contains(ece_key));
+        assert!(department_table.contains(me_key));
+    }
+
+    #[test]
+    fn test_vectable_remove() {
+
+        let mut department_table: VecTable<Department> = VecTable::new();
+
+        let ece_key = department_table.insert(Department {
+            name: "Electrical and Computer Engineering".to_string(),
+            abreviation: "ECE".to_string(),
+        });
+
+        let me_key = department_table.insert(Department {
+            name: "Mechanical Engineering".to_string(),
+            abreviation: "ME".to_string(),
+        });
+
+        let result = department_table.remove(ece_key);
+
+        assert_eq!(result, Ok(()));
+        assert!(!department_table.contains(ece_key));
+        assert!(department_table.contains(me_key));
     }
 }
