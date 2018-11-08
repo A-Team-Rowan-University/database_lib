@@ -3,6 +3,10 @@
 //! This is used by tests in the crate. Otherwise, there would be nothing to use in tests.
 //!
 
+use std::fmt::Display;
+use std::fmt;
+use std::str::FromStr;
+
 use interface::Entry;
 use interface::Value;
 use interface::FieldName;
@@ -34,6 +38,27 @@ impl FieldName for DepartmentFields {
         }
     }
     */
+}
+
+impl Display for DepartmentFields {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            DepartmentFields::Name => write!(f, "Name"),
+            DepartmentFields::Abreviation => write!(f, "Abreviation"),
+        }
+    }
+}
+
+impl FromStr for DepartmentFields {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Name" => Ok(DepartmentFields::Name),
+            "Abreviation" => Ok(DepartmentFields::Abreviation),
+            _ => Err("Field does not exist".to_string()),
+        }
+    }
 }
 
 impl Entry for Department {
@@ -74,11 +99,22 @@ impl Entry for Department {
 #[cfg(test)]
 mod department_tests {
 
+    use std::str::FromStr;
+
     use tests::Department;
     use tests::DepartmentFields;
 
     use interface::Entry;
     use interface::Value;
+
+    #[test]
+    fn test_departmentfields_from_str() {
+        let name_field = DepartmentFields::from_str("Name");
+        assert_eq!(name_field, Ok(DepartmentFields::Name));
+
+        let abreviation_field = DepartmentFields::from_str("Abreviation");
+        assert_eq!(abreviation_field, Ok(DepartmentFields::Abreviation));
+    }
 
     #[test]
     fn test_department_from_fields() {
@@ -147,6 +183,27 @@ pub enum UserFields {
 
 impl FieldName for UserFields {}
 
+impl Display for UserFields {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            UserFields::FirstName => write!(f, "First Name"),
+            UserFields::LastName => write!(f, "Last Name"),
+        }
+    }
+}
+
+impl FromStr for UserFields {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "First Name" => Ok(UserFields::FirstName),
+            "Last Name" => Ok(UserFields::LastName),
+            _ => Err("Field does not exist".to_string()),
+        }
+    }
+}
+
 impl Entry for User {
 
     type FieldNames = UserFields;
@@ -185,11 +242,22 @@ impl Entry for User {
 #[cfg(test)]
 mod user_tests {
 
+    use std::str::FromStr;
+
     use tests::User;
     use tests::UserFields;
 
     use interface::Entry;
     use interface::Value;
+
+    #[test]
+    fn test_userfields_from_str() {
+        let firstname_field = UserFields::from_str("First Name");
+        assert_eq!(firstname_field, Ok(UserFields::FirstName));
+
+        let lastname_field = UserFields::from_str("Last Name");
+        assert_eq!(lastname_field, Ok(UserFields::LastName));
+    }
 
     #[test]
     fn test_user_from_fields() {

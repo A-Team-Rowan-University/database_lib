@@ -2,7 +2,6 @@ use interface;
 use interface::Entry;
 use interface::Key;
 use interface::Table;
-use interface::FieldName;
 use my;
 
 pub struct mysql_table{
@@ -20,7 +19,7 @@ impl <E:Entry>Table<E> for mysql_table{
 	// These functions insert/lookup from the mysql database, not a local table
 
 	//Defines what type the key is
-	type Key = mysql_table_key;
+	type Key = mysql_table_key;	
 
 	//Searches the tables for a key
 	fn lookup(&self, key: Self::Key) -> Option<E>{
@@ -44,7 +43,7 @@ impl <E:Entry>Table<E> for mysql_table{
 		let mut the_result = Vec::new();
 		let mut i:usize = 0;
 		while i < this_result.len() {
-			let temp = myValue_to_iValue(this_result[i]);
+			let temp = myValue_to_iValue(&this_result[i]);
 			the_result.push(temp);
 			i=i+1;
 		}
@@ -95,25 +94,93 @@ impl <E:Entry>Table<E> for mysql_table{
         this_key[0]
 	}	
 	fn search(&self, field_name: E::FieldNames, field_value: interface::Value) -> Vec<(Self::Key, E)>{
-	//SELECT * IN tb_name WHERE field_name = field_value
-	
+		//SELECT * IN tb_name WHERE field_name = field_value
+		let mut con = self.pool.get_conn().unwrap();
+		
+		let cmd_db = "USE ".to_owned() + &self.db_name;
+		con.query(cmd_db).unwrap();
+		
+		let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&field_name.to_string()+ " = " + &field_value.to_string();
+		println!("{}",cmd);
+		let vec_result: Vec<Vec<my::Value>> = con.prep_exec(cmd,())
+			.map(|result|{
+				result.map(|x| x.unwrap()).map(|row|{
+					//Iterates through each row
+					let vec_data = my::Row::unwrap(row); //Returns a vector of my::Values for each row
+					vec_data //The order of the vector depends on the order inside the mySQL database
+				}).collect()
+			}).unwrap();
+		let mut final_result: Vec<(Self::Key, E)> = Vec::new();
+		let mut j:usize = 0;
+		while j <vec_result.len(){
+			let this_result =&vec_result[j]; //Saves the desired entry to a seperate vec
+			//Change the my::Value to interface::Value
+			let mut the_result = Vec::new();
+			let mut i:usize = 0;
+			while i < this_result.len() {
+				let temp = myValue_to_iValue(&this_result[i]);
+				the_result.push(temp);
+				i=i+1;
+			}
+			let end_result:E = Entry::from_fields(&the_result[1..the_result.len()]).unwrap();
+			let mut my_key= mysql_table_key{
+				id: my::from_value(this_result[0].to_owned()),
+			};
+			final_result.push((my_key,end_result));
+			j=j+1;
+		}
+		final_result
+		
 	}
     fn remove(&mut self, key: Self::Key) -> Result<(), String>{
-	//REMOVE FROM tb_name WHERE key_name = key
+		//DELETE FROM tb_name WHERE key_name = key
+		let mut con = self.pool.get_conn().unwrap();//Open connection to mySQL
+		let cmd_db = "USE ".to_owned() + &self.db_name;//Open the proper database
+		con.query(cmd_db).unwrap();
+		
+		let mut cmd = String::new();
+		cmd = "DELETE FROM ".to_string() + &self.tb_name + " WHERE " + &self.key_name + " = " +&key.id.to_string();
+		let QR = con.query(cmd);
+		
+		let f : Result <(), String>= match QR {
+        Ok(QueryResult) => Ok(()),
+        Err(error) => {
+            panic!("There was a problem deleting the user with key: {}", key.id)
+        },};
+    	f
 	
 	}
     fn contains(&self, key: Self::Key) -> bool{
 	//Same as lookup but returns a bool if the query result returns anything
-	
+		let mut con = self.pool.get_conn().unwrap();
+		
+		let cmd_db = "USE ".to_owned() + &self.db_name;
+		con.query(cmd_db).unwrap();
+		
+		let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&self.key_name+ " = " + &key.id.to_string();
+		println!("{}",cmd);
+		let vec_result: Vec<Vec<my::Value>> = con.prep_exec(cmd,())
+			.map(|result|{
+				result.map(|x| x.unwrap()).map(|row|{
+					//Iterates through each row
+					let vec_data = my::Row::unwrap(row); //Returns a vector of my::Values for each row
+					vec_data //The order of the vector depends on the order inside the mySQL database
+				}).collect()
+			}).unwrap();
+		if vec_result.len() != 0 {
+			true
+		}else{
+			false
+		}
 	}			
 }
-fn myValue_to_iValue(start:my::Value)->interface::Value{
+fn myValue_to_iValue(start:&my::Value)->interface::Value{
 	let mut temp :interface::Value;
 	match start{
-		my::Value::Int(i64) 	=> temp = interface::Value::Integer	(my::from_value(start)),
-		my::Value::Float(f64)	=> temp = interface::Value::Float	(my::from_value(start)),
-		my::Value::Bytes(Vec)	=> temp = interface::Value::String	(my::from_value(start)),
-		_ => (),
+		my::Value::Int(i64) 	=> temp = interface::Value::Integer	(my::from_value(start.to_owned())),
+		my::Value::Float(f64)	=> temp = interface::Value::Float	(my::from_value(start.to_owned())),
+		my::Value::Bytes(Vec)	=> temp = interface::Value::String	(my::from_value(start.to_owned())),
+		_ => temp = interface::Value::String("Failed to convert mySQL Value".to_string()),
 	};
 	temp
 }
