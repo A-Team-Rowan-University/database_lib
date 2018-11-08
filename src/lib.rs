@@ -1,6 +1,4 @@
-#[macro_use]
-extern crate downcast_rs;
-
+extern crate mysql as my;
 pub mod interface;
 pub mod tests;
 pub mod vec_table;

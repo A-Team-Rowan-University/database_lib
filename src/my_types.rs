@@ -1,35 +1,35 @@
-extern crate mysql as my;
+use interface;
 use interface::Entry;
 use interface::Key;
 use interface::Table;
+use interface::FieldName;
+use my;
 
-#[derive(Debug)]
 pub struct mysql_table{
 	//names are based on the mysql names
 	pub tb_name:String,
 	pub db_name: String,
 	pub key_name: String,
-	pub pool:my::Pool, //The pool that the user is connected to at the time. Use open_mysql(...) to get a Pool
+	pub pool: my::Pool, //The pool that the user is connected to at the time. Use open_mysql(...) to get a Pool
 	pub field: Vec<String>, //List of the fields in the tables, excludes key field
 	
 }
 
-
-impl <E:Entry+ 'static>Table<E> for mysql_table{
-	// functions for insert and lookup
+impl <E:Entry>Table<E> for mysql_table{
+	// functions for insert, lookup, delete, contains, and search
 	// These functions insert/lookup from the mysql database, not a local table
 
 	//Defines what type the key is
-	type Key = ();
+	type Key = mysql_table_key;
 
 	//Searches the tables for a key
-	fn lookup(&self, key: Box<dyn Key<E>>) -> Option<E>{
+	fn lookup(&self, key: Self::Key) -> Option<E>{
 		let mut con = self.pool.get_conn().unwrap();
 		
 		let cmd_db = "USE ".to_owned() + &self.db_name;
 		con.query(cmd_db).unwrap();
 		
-		let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&self.key_name+ " = " + &key.downcast_ref::<mysql_table_key>().unwrap().id.to_string();
+		let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&self.key_name+ " = " + &key.id.to_string();
 		println!("{}",cmd);
 		let vec_result: Vec<Vec<my::Value>> = con.prep_exec(cmd,())
 			.map(|result|{
@@ -40,19 +40,33 @@ impl <E:Entry+ 'static>Table<E> for mysql_table{
 				}).collect()
 			}).unwrap();
 		let this_result =&vec_result[0]; //Saves the desired entry to a seperate vec
-		let end_result = Entry::from_mysql(this_result);
+		//Change the my::Value to interface::Value
+		let mut the_result = Vec::new();
+		let mut i:usize = 0;
+		while i < this_result.len() {
+			let temp = myValue_to_iValue(this_result[i]);
+			the_result.push(temp);
+			i=i+1;
+		}
+		let end_result = Entry::from_fields(&the_result[..]).unwrap();
 		
 		Some(end_result)
 	}
 
 	//Inserts a new row into the table and returns a key
 	//Uses QueryResult.last_insert_id to get a key back
-	fn insert(&mut self, entry: E) -> Box<dyn Key<E>>{
+	fn insert(&mut self, entry: E) -> Self::Key{
 		let mut values :String = String::new(); //Create blank strings to hold to the fields and data
 		let mut data :String = String::new();
-		let entry_string = entry.to_vec_string();//Get the data as a string, must be ordered in the same way as fields
+		let mut entry_string:Vec<String> = Vec::new();
+		let entry_vec = entry.get_fields();//Get the data as a string, must be ordered in the same way as fields
+		let mut i:usize = 0;
+		while i < entry_vec.len(){
+			entry_string[i] =entry_vec[i].to_string();
+			i=i+1;
+		}
 		//Concatinate the fields and data into 2 large strings
-		let mut i=0;
+		i=0;
 		while i < self.field.len(){
 			values = values.to_owned() + ", "+&self.field[i] ;
 			data   = data.to_owned()   + ", "+&entry_string[i];
@@ -82,26 +96,36 @@ impl <E:Entry+ 'static>Table<E> for mysql_table{
 		Box::new(mysql_table_key {
             id: this_key[0].id
         })
-			
-			
-
+	}	
+	fn search(&self, field_name: E::FieldNames, field_value: interface::Value) -> Vec<(Self::Key, E)>{
+	//SELECT * IN tb_name WHERE field_name = field_value
+	
 	}
+    fn remove(&mut self, key: Self::Key) -> Result<(), String>{
+	//REMOVE FROM tb_name WHERE key_name = key
+	
+	}
+    fn contains(&self, key: Self::Key) -> bool{
+	//Same as lookup but returns a bool if the query result returns anything
+	
+	}			
+}
+fn myValue_to_iValue(start:my::Value)->interface::Value{
+	let mut temp :interface::Value;
+	match start{
+		my::Value::Int(i64) 	=> temp = interface::Value::Integer	(my::from_value(start)),
+		my::Value::Float(f64)	=> temp = interface::Value::Float	(my::from_value(start)),
+		my::Value::Bytes(Vec)	=> temp = interface::Value::String	(my::from_value(start)),
+		_ => (),
+	};
+	temp
 }
 
-#[derive(Debug)]
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct mysql_table_key{
 	id: usize
 }
 
-impl <E:Entry + 'static> Key<E> for mysql_table_key{
-	fn same_as(&self, other: Box<dyn Key<E>>) -> bool {
-		/*
-        if let Some(other_key) = other.downcast_ref::<mysql_table_key>() {
-            self.id == other_key.id
-        } else {
-            false
-        }
-		*/
-		true
-    }
-}
+impl <E:Entry> Key<E> for mysql_table_key{ }

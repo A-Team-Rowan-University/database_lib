@@ -100,6 +100,7 @@ fn main (){
 	
 }
 //Opens a pooled connection to mySQL and returns the pool used to acess it
+//This only works when the database is on the same machine that it's being executed on
 fn open_mysql(user: String)-> my::Pool{
 	let mut  optbuild = my::OptsBuilder::new();
 

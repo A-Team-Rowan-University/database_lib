@@ -1,6 +1,5 @@
 use std::fmt::Debug;
-use downcast_rs::Downcast;
-extern crate mysql as my;
+
 
 /**
  *  Key for an item in a table.
@@ -11,24 +10,50 @@ extern crate mysql as my;
  *
  *  The Downcast trait allows us to turn a Box<dyn Key> into the concrete type that it came from
  */
-pub trait Key<E: Entry + 'static>: Debug + Downcast {
-    fn same_as(&self, other: Box<dyn Key<E>>) -> bool;
+pub trait Key<E: Entry>: Debug + PartialEq {}
+
+#[derive(PartialEq, Debug)]
+pub enum Value {
+    Integer(i32),
+    Float(f32),
+    String(String),
+}
+impl ToString for Value{
+	fn to_string(&self) -> String{
+		let mut temp :String;
+		match &self{
+			Value::Integer(i32)  => temp = self::Value::Integer(*i32).to_string(),
+			Value::Float(f32)	 => temp = self::Value::Float(*f32).to_string(),
+			Value::String(String)=> temp = self::Value::String(String.to_string()).to_string(),
+			_ => (),
+		};
+		temp
+	}
 }
 
-impl_downcast!(Key<E> where E: Entry);
+
+
+pub trait FieldName: PartialEq + Copy + Clone + Debug  {}
 
 /**
- * Entry in a table. Things that implement this are stored in the database
+ *  Entry in a table. Things that implement this are stored in the database
  */
-pub trait Entry {
-    //fn get_fields(&self) -> ;
-	fn from_mysql(data:&Vec<my::Value>) -> Self;
-	fn to_vec_string(&self) -> Vec<String>;
+
+pub trait Entry: Clone {
+    type FieldNames: FieldName;
+
+    fn from_fields(values: &[Value]) -> Result<Self, String>;
+    fn get_field_names() -> Vec<Self::FieldNames>;
+    fn get_fields(&self) -> Vec<Value>;
+    fn get_field(&self, field_name: Self::FieldNames) -> Option<Value>;
 }
 
 pub trait Table<E: Entry> {
-    type Key;
-    fn insert(&mut self, entry: E) -> Box<dyn Key<E>>;
-    fn lookup(&self, key: Box<dyn Key<E>>) -> Option<E>;
-}
+    type Key: Key<E>;
 
+    fn insert(&mut self, entry: E) -> Self::Key;
+    fn lookup(&self, key: Self::Key) -> Option<E>;
+    fn search(&self, field_name: E::FieldNames, field_value: Value) -> Vec<(Self::Key, E)>;
+    fn remove(&mut self, key: Self::Key) -> Result<(), String>;
+    fn contains(&self, key: Self::Key) -> bool;
+}
