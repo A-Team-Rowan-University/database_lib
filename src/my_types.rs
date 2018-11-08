@@ -92,10 +92,7 @@ impl <E:Entry>Table<E> for mysql_table{
 				mysql_table_key{id:id}
 				}).collect()
 			}).unwrap();
-		//Box the key and send it out
-		Box::new(mysql_table_key {
-            id: this_key[0].id
-        })
+        this_key[0]
 	}	
 	fn search(&self, field_name: E::FieldNames, field_value: interface::Value) -> Vec<(Self::Key, E)>{
 	//SELECT * IN tb_name WHERE field_name = field_value
