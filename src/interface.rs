@@ -13,7 +13,7 @@ use std::str::FromStr;
 */
 pub trait Key<E: Entry>: Debug + PartialEq {}
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Value {
     Integer(i32),
     Float(f32),
@@ -31,6 +31,27 @@ impl ToString for Value{
 		temp
 	}
 }
+impl Into<i32> for Value{
+	fn into (self) -> i32 {
+		if let Value::Integer(temp) = self{
+			temp
+		}else{
+			panic!("Converted value to wrong type");
+}}}
+impl Into<f32> for Value{
+	fn into (self)-> f32 {
+		if let Value::Float(temp) = self{
+			temp
+		}else{
+			panic!("Converted value to wrong type");
+}}}
+impl Into<String> for Value{
+	fn into(self) -> String {
+		if let Value::String(temp) = self{
+			temp
+		}else{
+			panic!("Converted value to wrong type");
+}}}
 
 
 
