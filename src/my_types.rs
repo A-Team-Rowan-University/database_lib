@@ -4,17 +4,17 @@ use interface::Key;
 use interface::Table;
 use my;
 
-pub struct mysql_table{
+pub struct mysql_table<E: Entry>{
 	//names are based on the mysql names
 	pub tb_name:String,
 	pub db_name: String,
-	pub key_name: String,
+	pub key_name: E::FieldNames,
 	pub pool: my::Pool, //The pool that the user is connected to at the time. Use open_mysql(...) to get a Pool
-	pub field: Vec<String>, //List of the fields in the tables, excludes key field
+	pub field: Vec<E::FieldNames>, //List of the fields in the tables, excludes key field
 	
 }
 
-impl <E:Entry>Table<E> for mysql_table{
+impl <E:Entry>Table<E> for mysql_table<E>{
 	// functions for insert, lookup, delete, contains, and search
 	// These functions insert/lookup from the mysql database, not a local table
 
@@ -28,7 +28,7 @@ impl <E:Entry>Table<E> for mysql_table{
 		let cmd_db = "USE ".to_owned() + &self.db_name;
 		con.query(cmd_db).unwrap();
 		
-		let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&self.key_name+ " = " + &key.id.to_string();
+		let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&self.key_name.to_string()+ " = " + &key.id.to_string();
 		println!("{}",cmd);
 		let vec_result: Vec<Vec<my::Value>> = con.prep_exec(cmd,())
 			.map(|result|{
@@ -67,16 +67,16 @@ impl <E:Entry>Table<E> for mysql_table{
 		//Concatinate the fields and data into 2 large strings
 		i=0;
 		while i < self.field.len(){
-			values = values.to_owned() + ", "+&self.field[i] ;
+			values = values.to_owned() + ", "+&self.field[i].to_string();
 			data   = data.to_owned()   + ", "+&entry_string[i];
 			i=i+1;
 		}
 		//Generate the command with mySQL syntax and the 2 previous strings
 		let cmd = &("INSERT INTO ".to_string() + &self.tb_name +
-			" (" + &self.key_name + &values + 
+			" (" + &self.key_name.to_string() + &values + 
 			") VALUES (NULL" + &data + ")");
 		
-		//println!("{}",cmd);//Uncomment if you want to check what you just sent
+		println!("{}",cmd);//Uncomment if you want to check what you just sent
 		let mut con = self.pool.get_conn().unwrap();//Open connection to mySQL
 		
 		let cmd_db = "USE ".to_owned() + &self.db_name;//Open the proper database
@@ -123,7 +123,7 @@ impl <E:Entry>Table<E> for mysql_table{
 				i=i+1;
 			}
 			let end_result:E = Entry::from_fields(&the_result[1..the_result.len()]).unwrap();
-			let mut my_key= mysql_table_key{
+			let my_key= mysql_table_key{
 				id: my::from_value(this_result[0].to_owned()),
 			};
 			final_result.push((my_key,end_result));
@@ -138,13 +138,13 @@ impl <E:Entry>Table<E> for mysql_table{
 		let cmd_db = "USE ".to_owned() + &self.db_name;//Open the proper database
 		con.query(cmd_db).unwrap();
 		
-		let mut cmd = String::new();
-		cmd = "DELETE FROM ".to_string() + &self.tb_name + " WHERE " + &self.key_name + " = " +&key.id.to_string();
+		//let mut cmd = String::new();
+		let cmd = "DELETE FROM ".to_string() + &self.tb_name + " WHERE " + &self.key_name.to_string() + " = " +&key.id.to_string();
 		let QR = con.query(cmd);
 		
 		let f : Result <(), String>= match QR {
-        Ok(QueryResult) => Ok(()),
-        Err(error) => {
+        Ok(_QueryResult) => Ok(()),
+        Err(_error) => {
             panic!("There was a problem deleting the user with key: {}", key.id)
         },};
     	f
@@ -157,7 +157,7 @@ impl <E:Entry>Table<E> for mysql_table{
 		let cmd_db = "USE ".to_owned() + &self.db_name;
 		con.query(cmd_db).unwrap();
 		
-		let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&self.key_name+ " = " + &key.id.to_string();
+		let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&self.key_name.to_string()+ " = " + &key.id.to_string();
 		println!("{}",cmd);
 		let vec_result: Vec<Vec<my::Value>> = con.prep_exec(cmd,())
 			.map(|result|{
@@ -175,11 +175,11 @@ impl <E:Entry>Table<E> for mysql_table{
 	}			
 }
 fn myValue_to_iValue(start:&my::Value)->interface::Value{
-	let mut temp :interface::Value;
+	let temp :interface::Value;
 	match start{
-		my::Value::Int(i64) 	=> temp = interface::Value::Integer	(my::from_value(start.to_owned())),
-		my::Value::Float(f64)	=> temp = interface::Value::Float	(my::from_value(start.to_owned())),
-		my::Value::Bytes(Vec)	=> temp = interface::Value::String	(my::from_value(start.to_owned())),
+		my::Value::Int(_i64) 	=> temp = interface::Value::Integer	(my::from_value(start.to_owned())),
+		my::Value::Float(_f64)	=> temp = interface::Value::Float	(my::from_value(start.to_owned())),
+		my::Value::Bytes(_Vec)	=> temp = interface::Value::String	(my::from_value(start.to_owned())),
 		_ => temp = interface::Value::String("Failed to convert mySQL Value".to_string()),
 	};
 	temp
@@ -189,7 +189,7 @@ fn myValue_to_iValue(start:&my::Value)->interface::Value{
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct mysql_table_key{
-	id: usize
+	pub id: usize
 }
 
 impl <E:Entry> Key<E> for mysql_table_key{ }

@@ -21,7 +21,7 @@ pub enum Value {
 }
 impl ToString for Value{
 	fn to_string(&self) -> String{
-		let mut temp :String;
+		let temp :String;
 		match &self{
 			Value::Integer(i32)  => temp = self::Value::Integer(*i32).to_string(),
 			Value::Float(f32)	 => temp = self::Value::Float(*f32).to_string(),

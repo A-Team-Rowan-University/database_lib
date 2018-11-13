@@ -3,10 +3,8 @@ mod mysql_test{
 	extern crate mysql as my;
 	extern crate rouille;
 	extern crate rpassword;
-	use std::io;
 	use interface;
 	use interface::Entry;
-	use interface::Key;
 	use interface::Table;
 	use my_types;
 	use std::str::FromStr;
@@ -136,60 +134,94 @@ Columns in User
 		
 	}
 
-
 	#[test]
-	fn main_mysql_test(){
-	let pool = open_mysql("kluzynick".to_string());//Open mySQL, can be polled to find user instead of typing one into the funtion call
+	fn simple_mysql_test(){
+		let pool = open_mysql("kluzynick".to_string());//Open mySQL, can be polled to find user instead of typing one into the funtion call
 	
-	let fieldvec = vec![
-		"firstname".to_string(),
-		"lastname".to_string(),
-		"email".to_string(),
-		"bannerID".to_string()
-	];//Create a Vec<String> for the fields
-	let mut user_table: my_types::mysql_table= my_types::mysql_table {
-		tb_name: "User".to_string(),
-		db_name: "dbTest".to_string(),
-		key_name: "userID".to_string(),
-		pool:pool, 
-		field: fieldvec,
-	};
-	//Create a student to send to the database
-	let NickKz = User{
-		userID : 0, //temp value
-		firstname:"Nick".to_string(),
-		lastname:"Kluzynski".to_string(),
-		email: "kluzynskn6@students.rowan.edu".to_string(),
-		bannerID: 916181533,
+		let fieldvec = vec![
+			UserFields::firstname,
+			UserFields::lastname,
+			UserFields::email,
+			UserFields::bannerID
+		];//Create a Vec<String> for the fields
+		let mut user_table: my_types::mysql_table<User>= my_types::mysql_table {
+			tb_name: "User".to_string(),
+			db_name: "dbTest".to_string(),
+			key_name: UserFields::userID,
+			pool:pool, 
+			field: fieldvec,
+		};
+		assert_eq!(user_table.field[0].to_string(),"firstname");
+		//Create a student to send to the database
+		let NickKz = User{
+			userID : 0, //temp value
+			firstname:"Nick".to_string(),
+			lastname:"Kluzynski".to_string(),
+			email: "kluzynskn6@students.rowan.edu".to_string(),
+			bannerID: 916181533,
+			
+		};
+		let Nick_key:my_types::mysql_table_key = Some(user_table.insert(NickKz)).unwrap();
+		assert_eq!(Nick_key.id,0);
+	
+	
+	}
+	
+	
+	//#[test]
+	fn full_mysql_test(){
+		let pool = open_mysql("kluzynick".to_string());//Open mySQL, can be polled to find user instead of typing one into the funtion call
 		
-	};
-	//Insert the student into the database and unwrap the key that it sends back
-	let Nick_key:my_types::mysql_table_key = Some(user_table.insert(NickKz)).unwrap();
-	//Normally would reassign NickKz.userID but we are using a temp variable to make it easier
-	
-	//Fill Nick_2 with the data from the database
-	let Nick_2:User = user_table.lookup(Nick_key).unwrap();
-	assert_eq!(&Nick_2.firstname,"Nick");
-	
-	//Delete Nick when done
-	let Nick_del:Result <(), String> = user_table.remove(Nick_key);
-	assert_eq!(Nick_del, Ok(()));
-	
+		let fieldvec = vec![
+			UserFields::firstname,
+			UserFields::lastname,
+			UserFields::email,
+			UserFields::bannerID
+		];//Create a Vec<String> for the fields
+		let mut user_table: my_types::mysql_table<User>= my_types::mysql_table {
+			tb_name: "User".to_string(),
+			db_name: "dbTest".to_string(),
+			key_name: UserFields::userID,
+			pool:pool, 
+			field: fieldvec,
+		};
+		//Create a student to send to the database
+		let NickKz = User{
+			userID : 0, //temp value
+			firstname:"Nick".to_string(),
+			lastname:"Kluzynski".to_string(),
+			email: "kluzynskn6@students.rowan.edu".to_string(),
+			bannerID: 916181533,
+			
+		};
+		//Insert the student into the database and unwrap the key that it sends back
+		let Nick_key:my_types::mysql_table_key = Some(user_table.insert(NickKz)).unwrap();
+		//Normally would reassign NickKz.userID but we are using a temp variable to make it easier
+		
+		//Fill Nick_2 with the data from the database
+		let Nick_2:User = user_table.lookup(Nick_key).unwrap();
+		assert_eq!(&Nick_2.firstname,"Nick");
+		
+		//Delete Nick when done
+		let Nick_del:Result <(), String> = user_table.remove(Nick_key);
+		assert_eq!(Nick_del, Ok(()));
+		
 
+	}
+	//Opens a pooled connection to mySQL and returns the pool used to acess it
+	//This only works when the database is on the same machine that it's being executed on
+	fn open_mysql(user: String)-> my::Pool{
+		let mut  optbuild = my::OptsBuilder::new();
+
+		println!("{}'s password: ",user);
+		let pass = rpassword::read_password().unwrap();
+		
+		optbuild.ip_or_hostname(Some("localhost"))
+			.user(Some(user))
+			.pass(Some(pass));
+
+		let optcon = optbuild;
+		let p = my::Pool::new(optcon).unwrap();
+		p
+	}
 }
-//Opens a pooled connection to mySQL and returns the pool used to acess it
-//This only works when the database is on the same machine that it's being executed on
-fn open_mysql(user: String)-> my::Pool{
-	let mut  optbuild = my::OptsBuilder::new();
-
-	println!("{}'s password: ",user);
-    let pass = rpassword::read_password().unwrap();
-	
-	optbuild.ip_or_hostname(Some("localhost"))
-		.user(Some(user))
-		.pass(Some(pass));
-
-	let optcon = optbuild;
-	let p = my::Pool::new(optcon).unwrap();
-	p
-}}
