@@ -154,16 +154,22 @@ Columns in User
 		assert_eq!(user_table.field[0].to_string(),"firstname");
 		//Create a student to send to the database
 		let NickKz = User{
-			userID : 0, //temp value
-			firstname:"Nick".to_string(),
-			lastname:"Kluzynski".to_string(),
-			email: "kluzynskn6@students.rowan.edu".to_string(),
+			userID : 0,
+			firstname:"\'Nick\'".to_string(),
+			lastname:"\'Kluzynski\'".to_string(),
+			email: "\'kluzynskn6@students.rowan.edu\'".to_string(),
 			bannerID: 916181533,
 			
 		};
 		let Nick_key:my_types::mysql_table_key = Some(user_table.insert(NickKz)).unwrap();
-		assert_eq!(Nick_key.id,0);
+		
+		let mut good_key: bool = false;
+		if Nick_key.id != 0{
+			good_key = true;
+		}
+		assert!(good_key);
 	
+		let Nick_del = user_table.remove(Nick_key).unwrap();//Delete Nick from db so it doesn't get clogged
 	
 	}
 	
@@ -171,7 +177,7 @@ Columns in User
 	//#[test]
 	fn full_mysql_test(){
 		let pool = open_mysql("kluzynick".to_string());//Open mySQL, can be polled to find user instead of typing one into the funtion call
-		
+	
 		let fieldvec = vec![
 			UserFields::firstname,
 			UserFields::lastname,
@@ -185,27 +191,28 @@ Columns in User
 			pool:pool, 
 			field: fieldvec,
 		};
+		assert_eq!(user_table.field[0].to_string(),"firstname");
 		//Create a student to send to the database
 		let NickKz = User{
-			userID : 0, //temp value
-			firstname:"Nick".to_string(),
-			lastname:"Kluzynski".to_string(),
-			email: "kluzynskn6@students.rowan.edu".to_string(),
+			userID : 0,
+			firstname:"\'Nick\'".to_string(),
+			lastname:"\'Kluzynski\'".to_string(),
+			email: "\'kluzynskn6@students.rowan.edu\'".to_string(),
 			bannerID: 916181533,
 			
 		};
-		//Insert the student into the database and unwrap the key that it sends back
 		let Nick_key:my_types::mysql_table_key = Some(user_table.insert(NickKz)).unwrap();
-		//Normally would reassign NickKz.userID but we are using a temp variable to make it easier
 		
-		//Fill Nick_2 with the data from the database
-		let Nick_2:User = user_table.lookup(Nick_key).unwrap();
-		assert_eq!(&Nick_2.firstname,"Nick");
+		let mut good_key: bool = false;
+		if Nick_key.id != 0{
+			good_key = true;
+		}
+		assert!(good_key);
 		
-		//Delete Nick when done
-		let Nick_del:Result <(), String> = user_table.remove(Nick_key);
-		assert_eq!(Nick_del, Ok(()));
+		//Now add lookup, search, and contains
 		
+		
+		let Nick_del = user_table.remove(Nick_key).unwrap();//Delete Nick from db so it doesn't get clogged
 
 	}
 	//Opens a pooled connection to mySQL and returns the pool used to acess it

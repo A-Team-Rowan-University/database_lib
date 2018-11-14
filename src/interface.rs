@@ -21,14 +21,16 @@ pub enum Value {
 }
 impl ToString for Value{
 	fn to_string(&self) -> String{
-		let temp :String;
-		match &self{
-			Value::Integer(i32)  => temp = self::Value::Integer(*i32).to_string(),
-			Value::Float(f32)	 => temp = self::Value::Float(*f32).to_string(),
-			Value::String(String)=> temp = self::Value::String(String.to_string()).to_string(),
-			_ => temp = "NULL Value".to_string(),
-		};
-		temp
+		if let Value::Integer(temp) = self{
+			temp.to_owned().to_string()
+		}else if let Value::Float(temp) = self{
+			temp.to_owned().to_string()
+		}else if let Value::String(temp) = self{
+			temp.to_owned().to_string()
+		} else {
+			panic!("Could not convert Value");
+		}
+		
 	}
 }
 impl Into<i32> for Value{

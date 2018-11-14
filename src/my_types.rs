@@ -57,26 +57,36 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 	fn insert(&mut self, entry: E) -> Self::Key{
 		let mut values :String = String::new(); //Create blank strings to hold to the fields and data
 		let mut data :String = String::new();
-		let mut entry_string:Vec<String> = Vec::new();
+		//Create one big string for all data from Vec<interface:Value>
+		let mut entry_string = String::new();
 		let entry_vec = entry.get_fields();//Get the data as a string, must be ordered in the same way as fields
-		let mut i:usize = 0;
-		while i < entry_vec.len(){
-			entry_string[i] =entry_vec[i].to_string();
-			i=i+1;
+		//let entry_iter = entry_vec.iter();//Change the vector to an iterator (allows use of for loop)
+		//let mut entry_vec_string : Vec<String> = Vec::new();
+		println!("Begin converting string");
+		let entry_vec_string :Vec<String>= entry_vec.iter().map(|x| {
+			let mut temp = "".to_string();
+			if x.to_string() != "0"{
+				temp = x.to_string();
+			}
+			temp
+		}).collect();
+		//println!("Concating String");//For debugging
+		let entry_string = entry_vec_string.join(", ");//Creates one big string from the string vec
+		//println!("{}",entry_string);//For debugging
+		//Repeat entry string but for the values
+		let field_iter = self.field.iter();
+		let mut value_vec = Vec::new();
+		for i in field_iter{
+			value_vec.push(i.to_string());
 		}
-		//Concatinate the fields and data into 2 large strings
-		i=0;
-		while i < self.field.len(){
-			values = values.to_owned() + ", "+&self.field[i].to_string();
-			data   = data.to_owned()   + ", "+&entry_string[i];
-			i=i+1;
-		}
+		let values = value_vec.join(", ");
+		//println!("{}",values);//For debugging
 		//Generate the command with mySQL syntax and the 2 previous strings
 		let cmd = &("INSERT INTO ".to_string() + &self.tb_name +
-			" (" + &self.key_name.to_string() + &values + 
-			") VALUES (NULL" + &data + ")");
+			" (" + &self.key_name.to_string() + ", " + &values + 
+			") VALUES (NULL" + &entry_string + ")");
 		
-		println!("{}",cmd);//Uncomment if you want to check what you just sent
+		//println!("{}",cmd);//For debugging
 		let mut con = self.pool.get_conn().unwrap();//Open connection to mySQL
 		
 		let cmd_db = "USE ".to_owned() + &self.db_name;//Open the proper database
