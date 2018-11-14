@@ -153,6 +153,7 @@ Columns in User
 		};
 		assert_eq!(user_table.field[0].to_string(),"firstname");
 		//Create a student to send to the database
+		//All strings in the user must have a \' to indicate to mySQL that it is indeed a string
 		let NickKz = User{
 			userID : 0,
 			firstname:"\'Nick\'".to_string(),
@@ -174,7 +175,7 @@ Columns in User
 	}
 	
 	
-	//#[test]
+	#[test]
 	fn full_mysql_test(){
 		let pool = open_mysql("kluzynick".to_string());//Open mySQL, can be polled to find user instead of typing one into the funtion call
 	
@@ -193,7 +194,7 @@ Columns in User
 		};
 		assert_eq!(user_table.field[0].to_string(),"firstname");
 		//Create a student to send to the database
-		let NickKz = User{
+		let nick_kz = User{
 			userID : 0,
 			firstname:"\'Nick\'".to_string(),
 			lastname:"\'Kluzynski\'".to_string(),
@@ -201,18 +202,25 @@ Columns in User
 			bannerID: 916181533,
 			
 		};
-		let Nick_key:my_types::mysql_table_key = Some(user_table.insert(NickKz)).unwrap();
+		let nick_key:my_types::mysql_table_key = Some(user_table.insert(nick_kz)).unwrap();
 		
 		let mut good_key: bool = false;
-		if Nick_key.id != 0{
+		if nick_key.id != 0{
 			good_key = true;
 		}
 		assert!(good_key);
 		
-		//Now add lookup, search, and contains
+		let nick_bool = user_table.contains(nick_key);
+		assert!(nick_bool);
+		
+		let nick_2 = user_table.lookup(nick_key).unwrap();
+		assert_eq!(nick_2.firstname,"Nick");
+		//													Create a generic value containing the string 'Nick'			
+		let nick_3 = user_table.search(UserFields::firstname,interface::Value::String("\'Nick\'".to_string()))[0].to_owned().1;//Only saves the entry of the first result
+		assert_eq!(nick_3.lastname,"Kluzynski");
 		
 		
-		let Nick_del = user_table.remove(Nick_key).unwrap();//Delete Nick from db so it doesn't get clogged
+		let nick_del = user_table.remove(nick_key).unwrap();//Delete Nick from db so it doesn't get clogged
 
 	}
 	//Opens a pooled connection to mySQL and returns the pool used to acess it

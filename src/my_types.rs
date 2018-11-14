@@ -29,7 +29,6 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 		con.query(cmd_db).unwrap();
 		
 		let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&self.key_name.to_string()+ " = " + &key.id.to_string();
-		println!("{}",cmd);
 		let vec_result: Vec<Vec<my::Value>> = con.prep_exec(cmd,())
 			.map(|result|{
 				result.map(|x| x.unwrap()).map(|row|{
@@ -54,25 +53,21 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 
 	//Inserts a new row into the table and returns a key
 	//Uses QueryResult.last_insert_id to get a key back
+	//If the entry has a key field, set it to a temporary value of 0
 	fn insert(&mut self, entry: E) -> Self::Key{
 		let mut values :String = String::new(); //Create blank strings to hold to the fields and data
 		let mut data :String = String::new();
 		//Create one big string for all data from Vec<interface:Value>
 		let mut entry_string = String::new();
 		let entry_vec = entry.get_fields();//Get the data as a string, must be ordered in the same way as fields
-		//let entry_iter = entry_vec.iter();//Change the vector to an iterator (allows use of for loop)
-		//let mut entry_vec_string : Vec<String> = Vec::new();
-		println!("Begin converting string");
 		let entry_vec_string :Vec<String>= entry_vec.iter().map(|x| {
 			let mut temp = "".to_string();
 			if x.to_string() != "0"{
-				temp = x.to_string();
+				temp = x.to_string(); //Ignores the key sent since the key will be the only 0
 			}
 			temp
 		}).collect();
-		//println!("Concating String");//For debugging
 		let entry_string = entry_vec_string.join(", ");//Creates one big string from the string vec
-		//println!("{}",entry_string);//For debugging
 		//Repeat entry string but for the values
 		let field_iter = self.field.iter();
 		let mut value_vec = Vec::new();
@@ -80,13 +75,11 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 			value_vec.push(i.to_string());
 		}
 		let values = value_vec.join(", ");
-		//println!("{}",values);//For debugging
 		//Generate the command with mySQL syntax and the 2 previous strings
 		let cmd = &("INSERT INTO ".to_string() + &self.tb_name +
 			" (" + &self.key_name.to_string() + ", " + &values + 
 			") VALUES (NULL" + &entry_string + ")");
 		
-		//println!("{}",cmd);//For debugging
 		let mut con = self.pool.get_conn().unwrap();//Open connection to mySQL
 		
 		let cmd_db = "USE ".to_owned() + &self.db_name;//Open the proper database
@@ -111,7 +104,6 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 		con.query(cmd_db).unwrap();
 		
 		let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&field_name.to_string()+ " = " + &field_value.to_string();
-		println!("{}",cmd);
 		let vec_result: Vec<Vec<my::Value>> = con.prep_exec(cmd,())
 			.map(|result|{
 				result.map(|x| x.unwrap()).map(|row|{
@@ -132,7 +124,7 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 				the_result.push(temp);
 				i=i+1;
 			}
-			let end_result:E = Entry::from_fields(&the_result[1..the_result.len()]).unwrap();
+			let end_result:E = Entry::from_fields(&the_result[..]).unwrap();
 			let my_key= mysql_table_key{
 				id: my::from_value(this_result[0].to_owned()),
 			};
@@ -168,7 +160,6 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 		con.query(cmd_db).unwrap();
 		
 		let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&self.key_name.to_string()+ " = " + &key.id.to_string();
-		println!("{}",cmd);
 		let vec_result: Vec<Vec<my::Value>> = con.prep_exec(cmd,())
 			.map(|result|{
 				result.map(|x| x.unwrap()).map(|row|{
