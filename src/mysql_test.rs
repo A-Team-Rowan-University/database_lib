@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod mysql_test{
 	extern crate mysql as my;
-	extern crate rouille;
 	extern crate rpassword;
 	use interface;
 	use interface::Entry;
@@ -10,6 +9,7 @@ mod mysql_test{
 	use std::str::FromStr;
 	use std::fmt;
 	use std::fmt::Display;
+	use interface::ITryInto;
 
 //The following is an example of how to use the my_types to both send and recieve data from mySQL.
 //Because the tables rely on follwing the schema very closely, here is the schema for this example
@@ -41,12 +41,12 @@ Columns in User
 	//Struct to hold the row data
 	#[derive(Clone, PartialEq, Eq)]
 	struct User {
-		userID: i32,
 		firstname: String,
 		lastname: String,
 		email:String,
 		bannerID: i32
 	}
+	//Even though it is not in the struct, it should still be in UserFields so mySQL knows what the key is called
 	#[derive(PartialEq, Clone, Copy, Debug)]
 	enum UserFields {
 		userID,
@@ -88,19 +88,24 @@ Columns in User
 
 		fn from_fields(values: &[interface::Value]) -> Result<Self, String>{
 			let length = values.len();
+			let len_err = "Wrong vector for creating User, expecting length of 4, found ".to_string() + &length.to_string();
 			let this_result: Result<User,String> = match &length{
-				5 => {
+				4 => {
 					//Must assign non strings to buffers first to transfer the data from interface::Value to actual data
-					let id: i32 = 	values[0].to_owned().into();
-					let banner:i32=	values[4].to_owned().into();
-					Ok(User {
-						userID:	 	id,
-						firstname:	values[1].to_string().clone(),
-						lastname:	values[2].to_string().clone(),
-						email:		values[3].to_string().clone(),
-						bannerID:	banner
-					})}
-				_ =>Err(panic!("Could not convert user"))
+					let banner:Result<i32,String>=	values[3].to_owned().itry_into();
+					match banner {
+						Ok(i32) =>{
+							Ok(User { 
+								firstname:	values[0].to_string().clone(),
+								lastname:	values[1].to_string().clone(),
+								email:		values[2].to_string().clone(),
+								bannerID:	banner.unwrap()
+								})
+							},
+						_=>Err("Not proper values for user".to_string())
+					}
+				},
+				_ =>Err(len_err)
 			};
 			this_result
 		}
@@ -115,7 +120,6 @@ Columns in User
 		}
 		fn get_fields(&self) -> Vec<interface::Value>{
 			vec![
-				interface::Value::Integer(self.userID.clone()),
 				interface::Value::String (self.firstname.clone()),
 				interface::Value::String (self.lastname.clone()),
 				interface::Value::String (self.email.clone()),
@@ -124,11 +128,11 @@ Columns in User
 		}
 		fn get_field(&self, field_name: Self::FieldNames) -> Option<interface::Value>{
 			match field_name {
-				UserFields::userID 		=> Some(interface::Value::Integer(self.userID.clone())),
 				UserFields::firstname	=> Some(interface::Value::String (self.firstname.clone())),
 				UserFields::lastname	=> Some(interface::Value::String (self.lastname.clone())),
 				UserFields::email       => Some(interface::Value::String (self.email.clone())),
 				UserFields::bannerID    => Some(interface::Value::Integer(self.bannerID.clone())),
+				_ => None,
 			}
 		}
 		
@@ -155,7 +159,6 @@ Columns in User
 		//Create a student to send to the database
 		//All strings in the user must have a \' to indicate to mySQL that it is indeed a string
 		let NickKz = User{
-			userID : 0,
 			firstname:"\'Nick\'".to_string(),
 			lastname:"\'Kluzynski\'".to_string(),
 			email: "\'kluzynskn6@students.rowan.edu\'".to_string(),
@@ -195,13 +198,21 @@ Columns in User
 		assert_eq!(user_table.field[0].to_string(),"firstname");
 		//Create a student to send to the database
 		let nick_kz = User{
-			userID : 0,
 			firstname:"\'Nick\'".to_string(),
 			lastname:"\'Kluzynski\'".to_string(),
 			email: "\'kluzynskn6@students.rowan.edu\'".to_string(),
 			bannerID: 916181533,
 			
 		};
+		//Create a student to update with
+		let nick_update = User{
+			firstname:"\'Nicholas\'".to_string(),
+			lastname:"\'Kluzynski\'".to_string(),
+			email: "\'kluzynskn6@students.rowan.edu\'".to_string(),
+			bannerID: 916181533,
+			
+		};
+		println!("Inserting");
 		let nick_key:my_types::mysql_table_key = Some(user_table.insert(nick_kz)).unwrap();
 		
 		let mut good_key: bool = false;
@@ -210,16 +221,23 @@ Columns in User
 		}
 		assert!(good_key);
 		
+		println!("Contains");
 		let nick_bool = user_table.contains(nick_key);
 		assert!(nick_bool);
 		
+		println!("lookup");
 		let nick_2 = user_table.lookup(nick_key).unwrap();
 		assert_eq!(nick_2.firstname,"Nick");
-		//													Create a generic value containing the string 'Nick'			
-		let nick_3 = user_table.search(UserFields::firstname,interface::Value::String("\'Nick\'".to_string()))[0].to_owned().1;//Only saves the entry of the first result
+		
+		println!("update");
+		let nick_up_check = user_table.update(nick_key,nick_update).unwrap();
+		
+		println!("Search");
+		// 												Create a generic value containing the string 'Nick'			
+		let nick_3 = user_table.search(UserFields::firstname,interface::Value::String("\'Nicholas\'".to_string())).unwrap()[0].to_owned().1;//Only saves the entry of the first result
 		assert_eq!(nick_3.lastname,"Kluzynski");
 		
-		
+		println!("Remove");
 		let nick_del = user_table.remove(nick_key).unwrap();//Delete Nick from db so it doesn't get clogged
 
 	}

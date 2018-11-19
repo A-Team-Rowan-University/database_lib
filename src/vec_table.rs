@@ -62,16 +62,28 @@ impl<E: Entry> Table<E> for VecTable<E> {
         None
     }
 
-    fn search(&self, field_name: E::FieldNames, field_value: Value) -> Vec<(Self::Key, E)> {
-        self.vector.iter().fold(Vec::new(), |mut v, (id, e)| {
+	fn update(&self, key: Self::Key, entry: E)-> Result<(), String>{
+		unimplemented!();
+	}
+	
+    fn search(&self, field_name: E::FieldNames, field_value: Value) -> Result<Vec<(Self::Key, E)>,String> {
+		let mut good_value:bool = true;
+		let temp = self.vector.iter().fold(Vec::new(), |mut v, (id, e)| {
             if let Some(value) = e.get_field(field_name) {
                 if value == field_value {
                     v.push((VecTableKey{id: *id}, e.clone()));
                 }
-            }
-
-            v
-        })
+            }else{
+					good_value = false;
+			}
+			v
+        });
+		if good_value ==true{
+			Ok(temp)
+		}
+		else{
+			Err("Error converting vec in vectable".to_string())
+		}
     }
 
     fn remove(&mut self, key: Self::Key) -> Result<(), String> {
@@ -151,7 +163,7 @@ mod tests {
         let (found_key, _found_entry) = department_table.search(
             DepartmentFields::Abreviation,
             Value::String("ECE".to_string())
-        ).pop().unwrap();
+        ).unwrap().pop().unwrap();
 
         assert_eq!(ece_key, found_key);
     }

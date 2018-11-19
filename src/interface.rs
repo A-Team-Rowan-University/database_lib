@@ -12,6 +12,10 @@ use std::str::FromStr;
  *  The Downcast trait allows us to turn a Box<dyn Key> into the concrete type that it came from
 */
 pub trait Key<E: Entry>: Debug + PartialEq {}
+pub trait ITryInto<T> {
+    fn itry_into(self) -> Result<T, String>;
+}
+
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Value {
@@ -28,31 +32,32 @@ impl ToString for Value{
 		}else if let Value::String(temp) = self{
 			temp.to_owned().to_string()
 		} else {
-			panic!("Could not convert Value");
+			"".to_string()
+			//If you got here, how did you not pass a Value when you ARE a Value
 		}
 		
 	}
 }
-impl Into<i32> for Value{
-	fn into (self) -> i32 {
+impl ITryInto<i32> for Value{
+	fn itry_into (self) -> Result<i32, String> {
 		if let Value::Integer(temp) = self{
-			temp
+			Ok(temp)
 		}else{
-			panic!("Converted value to wrong type");
+			Err("Converted value to wrong type".to_string())
 }}}
-impl Into<f32> for Value{
-	fn into (self)-> f32 {
+impl ITryInto<f32> for Value{
+	fn itry_into (self)-> Result<f32, String> {
 		if let Value::Float(temp) = self{
-			temp
+			Ok(temp)
 		}else{
-			panic!("Converted value to wrong type");
+			Err("Converted value to wrong type".to_string())
 }}}
-impl Into<String> for Value{
-	fn into(self) -> String {
+impl ITryInto<String> for Value{
+	fn itry_into(self) -> Result<String, String> {
 		if let Value::String(temp) = self{
-			temp
+			Ok(temp)
 		}else{
-			panic!("Converted value to wrong type");
+			Err("Converted value to wrong type".to_string())
 }}}
 
 
@@ -89,7 +94,10 @@ pub trait Table<E: Entry> {
 
     /// Search for entries in the table with a field matching a value. Returns a vector of keys
     /// and entries for the results.
-    fn search(&self, field_name: E::FieldNames, field_value: Value) -> Vec<(Self::Key, E)>;
+    fn search(&self, field_name: E::FieldNames, field_value: Value) -> Result<Vec<(Self::Key, E)>,String>;
+	
+	/// Update an entry at a given key with a new entry
+	fn update(&self, key: Self::Key, entry: E)-> Result<(), String>;
 
     /// Removes the entry for the given key in the table. Returns an Ok(()) if successfull,
     /// but an Err(String) is the key could not be found, with an error message in the string.

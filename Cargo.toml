@@ -6,5 +6,4 @@ authors = ["Tim <timothyhollabaugh@gmail.com>"]
 [dependencies]
 downcast-rs = "1.0.3"
 mysql = "14.1.1"
-rouille = "2.2.0"
 rpassword = "2.0.0"

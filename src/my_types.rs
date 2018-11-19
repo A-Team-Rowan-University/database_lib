@@ -38,17 +38,29 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 				}).collect()
 			}).unwrap();
 		let this_result =&vec_result[0]; //Saves the desired entry to a seperate vec
-		//Change the my::Value to interface::Value
+		//Change the my::Value to interface::Value, start by declaring needed variables
 		let mut the_result = Vec::new();
 		let mut i:usize = 0;
+		let mut good_value: bool = true;
+		let err_string = "Failed to convert mySQL Value".to_string();
+		//Iterate through this_result and convert each myValue to iValue
 		while i < this_result.len() {
 			let temp = myValue_to_iValue(&this_result[i]);
-			the_result.push(temp);
+			//Check the result for an error
+			match temp{
+				Err(err_string) => good_value = false,
+				_ => the_result.push(temp.unwrap()),
+			};
 			i=i+1;
 		}
-		let end_result = Entry::from_fields(&the_result[..]).unwrap();
+
 		
-		Some(end_result)
+		// Make a return based on the presence of an error
+		match &good_value {
+			true=> Some(Entry::from_fields(&the_result[1..]).unwrap()),
+			_ => None
+		}
+
 	}
 
 	//Inserts a new row into the table and returns a key
@@ -62,10 +74,7 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 		let entry_vec = entry.get_fields();//Get the data as a string, must be ordered in the same way as fields
 		let entry_vec_string :Vec<String>= entry_vec.iter().map(|x| {
 			let mut temp = "".to_string();
-			if x.to_string() != "0"{
-				temp = x.to_string(); //Ignores the key sent since the key will be the only 0
-			}
-			temp
+			x.to_string()
 		}).collect();
 		let entry_string = entry_vec_string.join(", ");//Creates one big string from the string vec
 		//Repeat entry string but for the values
@@ -78,8 +87,7 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 		//Generate the command with mySQL syntax and the 2 previous strings
 		let cmd = &("INSERT INTO ".to_string() + &self.tb_name +
 			" (" + &self.key_name.to_string() + ", " + &values + 
-			") VALUES (NULL" + &entry_string + ")");
-		
+			") VALUES (NULL, " + &entry_string + ")");
 		let mut con = self.pool.get_conn().unwrap();//Open connection to mySQL
 		
 		let cmd_db = "USE ".to_owned() + &self.db_name;//Open the proper database
@@ -96,7 +104,7 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 			}).unwrap();
         this_key[0]
 	}	
-	fn search(&self, field_name: E::FieldNames, field_value: interface::Value) -> Vec<(Self::Key, E)>{
+	fn search(&self, field_name: E::FieldNames, field_value: interface::Value) -> Result<Vec<(Self::Key, E)>,String>{
 		//SELECT * IN tb_name WHERE field_name = field_value
 		let mut con = self.pool.get_conn().unwrap();
 		
@@ -114,6 +122,8 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 			}).unwrap();
 		let mut final_result: Vec<(Self::Key, E)> = Vec::new();
 		let mut j:usize = 0;
+		let mut good_value = true;
+		let mut err_string = "Failed to convert mySQL Value".to_string();
 		while j <vec_result.len(){
 			let this_result =&vec_result[j]; //Saves the desired entry to a seperate vec
 			//Change the my::Value to interface::Value
@@ -121,19 +131,68 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 			let mut i:usize = 0;
 			while i < this_result.len() {
 				let temp = myValue_to_iValue(&this_result[i]);
-				the_result.push(temp);
+				//Check the result for an error
+				match temp{
+					Err(err_string) => good_value = false,
+					_ => the_result.push(temp.unwrap()),
+				};
 				i=i+1;
 			}
-			let end_result:E = Entry::from_fields(&the_result[..]).unwrap();
-			let my_key= mysql_table_key{
-				id: my::from_value(this_result[0].to_owned()),
+			// Make a return based on the presence of an error
+			match &good_value {
+				true=> {
+					let my_key= mysql_table_key{
+						id: my::from_value(this_result[0].to_owned()),
+					};
+					let end_result:Result<E,String> = Entry::from_fields(&the_result[1..]);
+					match &end_result{
+						Ok(E) => final_result.push((my_key,end_result.clone().unwrap())),
+						_=> err_string = "Database did not return a valid entry".to_string(),
+					};					
+				},
+				_ => err_string = "Failed to convert mySQL Value".to_string(),
 			};
-			final_result.push((my_key,end_result));
 			j=j+1;
 		}
-		final_result
-		
+		match &good_value {
+			true => Ok(final_result),
+			_=> Err(err_string),
+		}
 	}
+	
+	fn update(&self, key: Self::Key, entry: E)-> Result<(), String>{
+		//UPDATE tb_name SET field 1= entry 1, field 2 = entry 2, ... WHERE id = key
+		//Always start with opening mysql
+		let mut con = self.pool.get_conn().unwrap();//Open connection to mySQL
+		let cmd_db = "USE ".to_owned() + &self.db_name;//Open the proper database
+		con.query(cmd_db).unwrap();
+		
+		//Create string for field x = entry x|
+		let field_iter = self.field.iter();
+		let entry_vec = entry.get_fields();//Get the data as a string, must be ordered in the same way as fields
+		let entry_string :Vec<String>= entry_vec.iter().map(|x| {
+			x.to_string()
+		}).collect(); //Collects the strings into a vector
+		let mut entry_iter = entry_string.iter();//converts it to another iter
+		let mut set_vec :Vec<String>= Vec::new(); // String that will hold each field x = entry x
+		for i in field_iter {
+			set_vec.push(i.to_string() + " = " + entry_iter.next().unwrap());
+		}
+		let set = set_vec[..].join(", ");	//Combines the set_vec (as a slice) into one string seperated by ,
+		
+		//Create string for cmd
+		let cmd = "UPDATE ".to_string() + &self.tb_name + " SET " + &set + " WHERE "+ &self.key_name.to_string() + " = " +&key.id.to_string();
+		
+		//Send cmd and see if it is good
+		let QR = con.query(cmd);
+		
+		let f : Result <(), String>= match QR {
+        Ok(_QueryResult) => Ok(()),
+        Err(_error) => Err("There was a problem updating the user, please consult sysadmin".to_string()),
+		};
+    	f
+	}
+	
     fn remove(&mut self, key: Self::Key) -> Result<(), String>{
 		//DELETE FROM tb_name WHERE key_name = key
 		let mut con = self.pool.get_conn().unwrap();//Open connection to mySQL
@@ -146,12 +205,17 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 		
 		let f : Result <(), String>= match QR {
         Ok(_QueryResult) => Ok(()),
-        Err(_error) => {
-            panic!("There was a problem deleting the user with key: {}", key.id)
-        },};
+        Err(_error) => Err("There was a problem deleting the user, please consult sysadmin".to_string()),
+		};
     	f
 	
 	}
+	/*
+	fn update (&mut self, key: Self::Key) ->Result<(), String>{
+		
+	
+	}
+	*/
     fn contains(&self, key: Self::Key) -> bool{
 	//Same as lookup but returns a bool if the query result returns anything
 		let mut con = self.pool.get_conn().unwrap();
@@ -175,15 +239,14 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 		}
 	}			
 }
-fn myValue_to_iValue(start:&my::Value)->interface::Value{
+fn myValue_to_iValue(start:&my::Value)->Result<interface::Value,String>{
 	let temp :interface::Value;
 	match start{
-		my::Value::Int(_i64) 	=> temp = interface::Value::Integer	(my::from_value(start.to_owned())),
-		my::Value::Float(_f64)	=> temp = interface::Value::Float	(my::from_value(start.to_owned())),
-		my::Value::Bytes(_Vec)	=> temp = interface::Value::String	(my::from_value(start.to_owned())),
-		_ => temp = interface::Value::String("Failed to convert mySQL Value".to_string()),
-	};
-	temp
+		my::Value::Int(_i64) 	=> Ok(interface::Value::Integer	(my::from_value(start.to_owned()))),
+		my::Value::Float(_f64)	=> Ok(interface::Value::Float	(my::from_value(start.to_owned()))),
+		my::Value::Bytes(_Vec)	=> Ok(interface::Value::String	(my::from_value(start.to_owned()))),
+		_ => Err("Failed to convert mySQL Value".to_string()),
+	}
 }
 
 
