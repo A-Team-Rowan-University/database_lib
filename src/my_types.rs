@@ -4,7 +4,7 @@ use interface::Key;
 use interface::Table;
 use my;
 
-pub struct mysql_table<E: Entry>{
+pub struct MysqlTable<E: Entry>{
 	//names are based on the mysql names
 	pub tb_name:String,
 	pub db_name: String,
@@ -14,12 +14,12 @@ pub struct mysql_table<E: Entry>{
 	
 }
 
-impl <E:Entry>Table<E> for mysql_table<E>{
+impl <E:Entry>Table<E> for MysqlTable<E>{
 	// functions for insert, lookup, delete, contains, and search
 	// These functions insert/lookup from the mysql database, not a local table
 
 	//Defines what type the key is
-	type Key = mysql_table_key;	
+	type Key = MysqlTableKey;	
 
 	//Searches the tables for a key
 	fn lookup(&self, key: Self::Key) -> Option<E>{
@@ -42,13 +42,13 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 		let mut the_result = Vec::new();
 		let mut i:usize = 0;
 		let mut good_value: bool = true;
-		let err_string = "Failed to convert mySQL Value".to_string();
+		let _err_string = "Failed to convert mySQL Value".to_string();
 		//Iterate through this_result and convert each myValue to iValue
 		while i < this_result.len() {
-			let temp = myValue_to_iValue(&this_result[i]);
+			let temp = myvalue_to_ivalue(&this_result[i]);
 			//Check the result for an error
 			match temp{
-				Err(err_string) => good_value = false,
+				Err(_err_string) => good_value = false,
 				_ => the_result.push(temp.unwrap()),
 			};
 			i=i+1;
@@ -67,14 +67,13 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 	//Uses QueryResult.last_insert_id to get a key back
 	//If the entry has a key field, set it to a temporary value of 0
 	fn insert(&mut self, entry: E) -> Self::Key{
-		let mut values :String = String::new(); //Create blank strings to hold to the fields and data
-		let mut data :String = String::new();
+		let _values :String = String::new(); //Create blank strings to hold to the fields and data
+		let _data :String = String::new();
 		//Create one big string for all data from Vec<interface:Value>
-		let mut entry_string = String::new();
+		let _entry_string = String::new();
 		let entry_vec = entry.get_fields();//Get the data as a string, must be ordered in the same way as fields
 		let entry_vec_string :Vec<String>= entry_vec.iter().map(|x| {
-			let mut temp = "".to_string();
-			x.to_string()
+			ivalue_to_mystring(x)
 		}).collect();
 		let entry_string = entry_vec_string.join(", ");//Creates one big string from the string vec
 		//Repeat entry string but for the values
@@ -95,11 +94,11 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 		
 		con.prep_exec(cmd,()).unwrap();//Send the prepared statement defined earlier
 		//Get last entry in that table
-		let this_key: Vec<mysql_table_key> = con.prep_exec("SELECT LAST_INSERT_ID()",())
+		let this_key: Vec<MysqlTableKey> = con.prep_exec("SELECT LAST_INSERT_ID()",())
 			.map(|result|{
 				result.map(|x| x.unwrap()).map(|row|{
 				let id = my::from_row(row);
-				mysql_table_key{id:id}
+				MysqlTableKey{id:id}
 				}).collect()
 			}).unwrap();
         this_key[0]
@@ -130,10 +129,10 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 			let mut the_result = Vec::new();
 			let mut i:usize = 0;
 			while i < this_result.len() {
-				let temp = myValue_to_iValue(&this_result[i]);
+				let temp = myvalue_to_ivalue(&this_result[i]);
 				//Check the result for an error
 				match temp{
-					Err(err_string) => good_value = false,
+					Err(_err_string) => good_value = false,
 					_ => the_result.push(temp.unwrap()),
 				};
 				i=i+1;
@@ -141,12 +140,12 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 			// Make a return based on the presence of an error
 			match &good_value {
 				true=> {
-					let my_key= mysql_table_key{
+					let my_key= MysqlTableKey{
 						id: my::from_value(this_result[0].to_owned()),
 					};
 					let end_result:Result<E,String> = Entry::from_fields(&the_result[1..]);
 					match &end_result{
-						Ok(E) => final_result.push((my_key,end_result.clone().unwrap())),
+						Ok(_e) => final_result.push((my_key,end_result.clone().unwrap())),
 						_=> err_string = "Database did not return a valid entry".to_string(),
 					};					
 				},
@@ -171,7 +170,7 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 		let field_iter = self.field.iter();
 		let entry_vec = entry.get_fields();//Get the data as a string, must be ordered in the same way as fields
 		let entry_string :Vec<String>= entry_vec.iter().map(|x| {
-			x.to_string()
+			ivalue_to_mystring(x)
 		}).collect(); //Collects the strings into a vector
 		let mut entry_iter = entry_string.iter();//converts it to another iter
 		let mut set_vec :Vec<String>= Vec::new(); // String that will hold each field x = entry x
@@ -184,10 +183,10 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 		let cmd = "UPDATE ".to_string() + &self.tb_name + " SET " + &set + " WHERE "+ &self.key_name.to_string() + " = " +&key.id.to_string();
 		
 		//Send cmd and see if it is good
-		let QR = con.query(cmd);
+		let qr = con.query(cmd);
 		
-		let f : Result <(), String>= match QR {
-        Ok(_QueryResult) => Ok(()),
+		let f : Result <(), String>= match qr {
+        Ok(_query_result) => Ok(()),
         Err(_error) => Err("There was a problem updating the user, please consult sysadmin".to_string()),
 		};
     	f
@@ -201,10 +200,10 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 		
 		//let mut cmd = String::new();
 		let cmd = "DELETE FROM ".to_string() + &self.tb_name + " WHERE " + &self.key_name.to_string() + " = " +&key.id.to_string();
-		let QR = con.query(cmd);
+		let qr = con.query(cmd);
 		
-		let f : Result <(), String>= match QR {
-        Ok(_QueryResult) => Ok(()),
+		let f : Result <(), String>= match qr {
+        Ok(_query_result) => Ok(()),
         Err(_error) => Err("There was a problem deleting the user, please consult sysadmin".to_string()),
 		};
     	f
@@ -239,21 +238,29 @@ impl <E:Entry>Table<E> for mysql_table<E>{
 		}
 	}			
 }
-fn myValue_to_iValue(start:&my::Value)->Result<interface::Value,String>{
-	let temp :interface::Value;
+fn myvalue_to_ivalue(start:&my::Value)->Result<interface::Value,String>{
+	let _temp :interface::Value;
 	match start{
 		my::Value::Int(_i64) 	=> Ok(interface::Value::Integer	(my::from_value(start.to_owned()))),
 		my::Value::Float(_f64)	=> Ok(interface::Value::Float	(my::from_value(start.to_owned()))),
-		my::Value::Bytes(_Vec)	=> Ok(interface::Value::String	(my::from_value(start.to_owned()))),
+		my::Value::Bytes(_vec)	=> Ok(interface::Value::String	(my::from_value(start.to_owned()))),
 		_ => Err("Failed to convert mySQL Value".to_string()),
+	}
+}
+fn ivalue_to_mystring(data: &interface::Value)->String{
+	match data{
+		interface::Value::Integer(_i32) => data.to_owned().to_string(),
+		interface::Value::Float(_f32)   => data.to_owned().to_string(),
+		//Strings need quotes around them. This assumes that all other characters have already been escaped
+		interface::Value::String(_string) => "'".to_string() + &data.to_owned().to_string() + "'",
 	}
 }
 
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct mysql_table_key{
+pub struct MysqlTableKey{
 	pub id: usize
 }
 
-impl <E:Entry> Key<E> for mysql_table_key{ }
+impl <E:Entry> Key<E> for MysqlTableKey{ }

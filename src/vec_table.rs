@@ -62,7 +62,7 @@ impl<E: Entry> Table<E> for VecTable<E> {
         None
     }
 
-	fn update(&self, key: Self::Key, entry: E)-> Result<(), String>{
+	fn update(&self, _key: Self::Key, _entry: E)-> Result<(), String>{
 		unimplemented!();
 	}
 	

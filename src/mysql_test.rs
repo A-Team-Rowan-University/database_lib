@@ -94,7 +94,7 @@ Columns in User
 					//Must assign non strings to buffers first to transfer the data from interface::Value to actual data
 					let banner:Result<i32,String>=	values[3].to_owned().itry_into();
 					match banner {
-						Ok(i32) =>{
+						Ok(_i32) =>{
 							Ok(User { 
 								firstname:	values[0].to_string().clone(),
 								lastname:	values[1].to_string().clone(),
@@ -148,7 +148,7 @@ Columns in User
 			UserFields::email,
 			UserFields::bannerID
 		];//Create a Vec<String> for the fields
-		let mut user_table: my_types::mysql_table<User>= my_types::mysql_table {
+		let mut user_table: my_types::MysqlTable<User>= my_types::MysqlTable {
 			tb_name: "User".to_string(),
 			db_name: "dbTest".to_string(),
 			key_name: UserFields::userID,
@@ -158,22 +158,22 @@ Columns in User
 		assert_eq!(user_table.field[0].to_string(),"firstname");
 		//Create a student to send to the database
 		//All strings in the user must have a \' to indicate to mySQL that it is indeed a string
-		let NickKz = User{
-			firstname:"\'Nick\'".to_string(),
-			lastname:"\'Kluzynski\'".to_string(),
-			email: "\'kluzynskn6@students.rowan.edu\'".to_string(),
+		let nick_kz = User{
+			firstname:"Nick".to_string(),
+			lastname:"Kluzynski".to_string(),
+			email: "kluzynskn6@students.rowan.edu".to_string(),
 			bannerID: 916181533,
 			
 		};
-		let Nick_key:my_types::mysql_table_key = Some(user_table.insert(NickKz)).unwrap();
+		let nick_key:my_types::MysqlTableKey = Some(user_table.insert(nick_kz)).unwrap();
 		
 		let mut good_key: bool = false;
-		if Nick_key.id != 0{
+		if nick_key.id != 0{
 			good_key = true;
 		}
 		assert!(good_key);
 	
-		let Nick_del = user_table.remove(Nick_key).unwrap();//Delete Nick from db so it doesn't get clogged
+		let _nick_del = user_table.remove(nick_key).unwrap();//Delete Nick from db so it doesn't get clogged
 	
 	}
 	
@@ -188,7 +188,7 @@ Columns in User
 			UserFields::email,
 			UserFields::bannerID
 		];//Create a Vec<String> for the fields
-		let mut user_table: my_types::mysql_table<User>= my_types::mysql_table {
+		let mut user_table: my_types::MysqlTable<User>= my_types::MysqlTable {
 			tb_name: "User".to_string(),
 			db_name: "dbTest".to_string(),
 			key_name: UserFields::userID,
@@ -198,22 +198,22 @@ Columns in User
 		assert_eq!(user_table.field[0].to_string(),"firstname");
 		//Create a student to send to the database
 		let nick_kz = User{
-			firstname:"\'Nick\'".to_string(),
-			lastname:"\'Kluzynski\'".to_string(),
-			email: "\'kluzynskn6@students.rowan.edu\'".to_string(),
+			firstname:"Nick".to_string(),
+			lastname:"Kluzynski".to_string(),
+			email: "kluzynskn6@students.rowan.edu".to_string(),
 			bannerID: 916181533,
 			
 		};
 		//Create a student to update with
 		let nick_update = User{
-			firstname:"\'Nicholas\'".to_string(),
-			lastname:"\'Kluzynski\'".to_string(),
-			email: "\'kluzynskn6@students.rowan.edu\'".to_string(),
+			firstname:"Nick".to_string(),
+			lastname:"Kluzynski".to_string(),
+			email: "kluzynskn6@students.rowan.edu".to_string(),
 			bannerID: 916181533,
 			
 		};
-		println!("Inserting");
-		let nick_key:my_types::mysql_table_key = Some(user_table.insert(nick_kz)).unwrap();
+
+		let nick_key:my_types::MysqlTableKey = Some(user_table.insert(nick_kz)).unwrap();
 		
 		let mut good_key: bool = false;
 		if nick_key.id != 0{
@@ -221,24 +221,19 @@ Columns in User
 		}
 		assert!(good_key);
 		
-		println!("Contains");
 		let nick_bool = user_table.contains(nick_key);
 		assert!(nick_bool);
 		
-		println!("lookup");
 		let nick_2 = user_table.lookup(nick_key).unwrap();
 		assert_eq!(nick_2.firstname,"Nick");
 		
-		println!("update");
-		let nick_up_check = user_table.update(nick_key,nick_update).unwrap();
+		let _nick_up_check = user_table.update(nick_key,nick_update).unwrap();
 		
-		println!("Search");
 		// 												Create a generic value containing the string 'Nick'			
 		let nick_3 = user_table.search(UserFields::firstname,interface::Value::String("\'Nicholas\'".to_string())).unwrap()[0].to_owned().1;//Only saves the entry of the first result
 		assert_eq!(nick_3.lastname,"Kluzynski");
-		
-		println!("Remove");
-		let nick_del = user_table.remove(nick_key).unwrap();//Delete Nick from db so it doesn't get clogged
+
+		let _nick_del = user_table.remove(nick_key).unwrap();//Delete Nick from db so it doesn't get clogged
 
 	}
 	//Opens a pooled connection to mySQL and returns the pool used to acess it
