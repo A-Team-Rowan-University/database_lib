@@ -10,6 +10,7 @@ mod mysql_test{
 	use std::fmt;
 	use std::fmt::Display;
 	use interface::ITryInto;
+	use std::io;
 
 //The following is an example of how to use the my_types to both send and recieve data from mySQL.
 //Because the tables rely on follwing the schema very closely, here is the schema for this example
@@ -140,7 +141,12 @@ Columns in User
 
 	#[test]
 	fn simple_mysql_test(){
-		let pool = open_mysql("kluzynick".to_string());//Open mySQL, can be polled to find user instead of typing one into the funtion call
+		println!("enter username: ");
+		let mut user = String::new();
+		io::stdin().read_line(&mut user).expect("Failed to read line");
+		println!("{}'s password: ",user);
+		let pass = rpassword::read_password().unwrap();
+		let pool = my_types::open_mysql(user,pass).unwrap();//Open mySQL
 	
 		let fieldvec = vec![
 			UserFields::firstname,
@@ -166,12 +172,7 @@ Columns in User
 			
 		};
 		let nick_key:my_types::MysqlTableKey = Some(user_table.insert(nick_kz)).unwrap();
-		
-		let mut good_key: bool = false;
-		if nick_key.id != 0{
-			good_key = true;
-		}
-		assert!(good_key);
+		assert!(nick_key.valid);
 	
 		let _nick_del = user_table.remove(nick_key).unwrap();//Delete Nick from db so it doesn't get clogged
 	
@@ -180,7 +181,12 @@ Columns in User
 	
 	#[test]
 	fn full_mysql_test(){
-		let pool = open_mysql("kluzynick".to_string());//Open mySQL, can be polled to find user instead of typing one into the funtion call
+		println!("enter username: ");
+		let mut user = String::new();
+		io::stdin().read_line(&mut user).expect("Failed to read line");
+		println!("{}'s password: ",user);
+		let pass = rpassword::read_password().unwrap();
+		let pool = my_types::open_mysql(user,pass).unwrap();//Open mySQL
 	
 		let fieldvec = vec![
 			UserFields::firstname,
@@ -206,7 +212,7 @@ Columns in User
 		};
 		//Create a student to update with
 		let nick_update = User{
-			firstname:"Nick".to_string(),
+			firstname:"Nicholas".to_string(),
 			lastname:"Kluzynski".to_string(),
 			email: "kluzynskn6@students.rowan.edu".to_string(),
 			bannerID: 916181533,
@@ -214,12 +220,7 @@ Columns in User
 		};
 
 		let nick_key:my_types::MysqlTableKey = Some(user_table.insert(nick_kz)).unwrap();
-		
-		let mut good_key: bool = false;
-		if nick_key.id != 0{
-			good_key = true;
-		}
-		assert!(good_key);
+		assert!(nick_key.valid);
 		
 		let nick_bool = user_table.contains(nick_key);
 		assert!(nick_bool);
@@ -236,20 +237,5 @@ Columns in User
 		let _nick_del = user_table.remove(nick_key).unwrap();//Delete Nick from db so it doesn't get clogged
 
 	}
-	//Opens a pooled connection to mySQL and returns the pool used to acess it
-	//This only works when the database is on the same machine that it's being executed on
-	fn open_mysql(user: String)-> my::Pool{
-		let mut  optbuild = my::OptsBuilder::new();
 
-		println!("{}'s password: ",user);
-		let pass = rpassword::read_password().unwrap();
-		
-		optbuild.ip_or_hostname(Some("localhost"))
-			.user(Some(user))
-			.pass(Some(pass));
-
-		let optcon = optbuild;
-		let p = my::Pool::new(optcon).unwrap();
-		p
-	}
 }
