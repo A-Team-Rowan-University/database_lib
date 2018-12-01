@@ -22,6 +22,7 @@ pub enum Value {
     Integer(i32),
     Float(f32),
     String(String),
+    Boolean(bool),
 }
 impl ToString for Value{
 	fn to_string(&self) -> String{

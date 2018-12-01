@@ -256,12 +256,13 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 		}
 	}			
 }
-fn myvalue_to_ivalue(start:&my::Value)->Result<interface::Value,String>{
-	let _temp :interface::Value;
-	match start{
+fn myvalue_to_ivalue(start: &my::Value) -> Result<interface::Value, String> {
+    let _temp :interface::Value;
+    match start{
 		my::Value::Int(_i64) 	=> Ok(interface::Value::Integer	(my::from_value(start.to_owned()))),
 		my::Value::Float(_f64)	=> Ok(interface::Value::Float	(my::from_value(start.to_owned()))),
 		my::Value::Bytes(_vec)	=> Ok(interface::Value::String	(my::from_value(start.to_owned()))),
+        my::Value::UInt(_u64)   => Ok(interface::Value::Boolean (my::from_value(start.to_owned()))),
 		_ => Err("Failed to convert mySQL Value".to_string()),
 	}
 }
@@ -269,6 +270,7 @@ fn ivalue_to_mystring(data: &interface::Value)->String{
 	match data{
 		interface::Value::Integer(_i32) => data.to_owned().to_string(),
 		interface::Value::Float(_f32)   => data.to_owned().to_string(),
+        interface::Value::Boolean(_bool) => (*_bool as u64).to_string(),
 		//Strings need quotes around them. This assumes that all other characters have already been escaped
 		interface::Value::String(_string) => {
 			let temp :Vec<String> = data.to_owned().to_string().split('\'').map({|x|
