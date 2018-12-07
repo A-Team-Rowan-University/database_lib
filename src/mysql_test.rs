@@ -11,6 +11,7 @@ mod mysql_test{
 	use std::fmt::Display;
 	use interface::ITryInto;
 	use std::io;
+	use std::marker::PhantomData;
 
 //The following is an example of how to use the my_types to both send and recieve data from mySQL.
 //Because the tables rely on follwing the schema very closely, here is the schema for this example
@@ -47,10 +48,9 @@ Columns in User
 		email:String,
 		bannerID: i32
 	}
-	//Even though it is not in the struct, it should still be in UserFields so mySQL knows what the key is called
+	
 	#[derive(PartialEq, Clone, Copy, Debug)]
 	enum UserFields {
-		userID,
 		firstname,
 		lastname,
 		email,
@@ -63,7 +63,6 @@ Columns in User
 
 		fn from_str(s: &str) -> Result<Self, Self::Err> {
 			match s {
-				"userID" 	=> Ok(UserFields::userID),
 				"firstname"	=> Ok(UserFields::firstname),
 				"lastname"	=> Ok(UserFields::lastname),
 				"email"		=> Ok(UserFields::email),
@@ -75,7 +74,6 @@ Columns in User
 	impl Display for UserFields {
 		fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 			match self {
-				UserFields::userID		=>write!(f,"userID"),
 				UserFields::firstname	=>write!(f,"firstname"),
 				UserFields::lastname	=>write!(f,"lastname"),
 				UserFields::email		=>write!(f,"email"),
@@ -112,7 +110,6 @@ Columns in User
 		}
 		fn get_field_names() -> Vec<Self::FieldNames>{
 			vec![
-				UserFields::userID,
 				UserFields::firstname,
 				UserFields::lastname,
 				UserFields::email,
@@ -144,24 +141,16 @@ Columns in User
 		println!("enter username: ");
 		let mut user = String::new();
 		io::stdin().read_line(&mut user).expect("Failed to read line");
+		user = user.trim().to_string();
 		println!("{}'s password: ",user);
-		let pass = rpassword::read_password().unwrap();
+		let pass = rpassword::read_password().unwrap().trim().to_string();
 		let pool = my_types::open_mysql(user,pass).unwrap();//Open mySQL
 	
-		let fieldvec = vec![
-			UserFields::firstname,
-			UserFields::lastname,
-			UserFields::email,
-			UserFields::bannerID
-		];//Create a Vec<String> for the fields
-		let mut user_table: my_types::MysqlTable<User>= my_types::MysqlTable {
-			tb_name: "User".to_string(),
-			db_name: "dbTest".to_string(),
-			key_name: UserFields::userID,
-			pool:pool, 
-			field: fieldvec,
-		};
-		assert_eq!(user_table.field[0].to_string(),"firstname");
+		//Change this to my_types::MysqlTableKey<User>::new({struct data});
+		let mut user_table = my_types::MysqlTable::<User>::new(pool);
+			user_table.tb_name  = "User".to_string();
+			user_table.db_name  = "dbTest".to_string();
+			user_table.key_name = "userID".to_string();
 		//Create a student to send to the database
 		//All strings in the user must have a \' to indicate to mySQL that it is indeed a string
 		let nick_kz = User{
@@ -184,24 +173,19 @@ Columns in User
 		println!("enter username: ");
 		let mut user = String::new();
 		io::stdin().read_line(&mut user).expect("Failed to read line");
+		user = user.trim().to_string();
 		println!("{}'s password: ",user);
-		let pass = rpassword::read_password().unwrap();
+		let pass = rpassword::read_password().unwrap().trim().to_string();
 		let pool = my_types::open_mysql(user,pass).unwrap();//Open mySQL
 	
-		let fieldvec = vec![
-			UserFields::firstname,
-			UserFields::lastname,
-			UserFields::email,
-			UserFields::bannerID
-		];//Create a Vec<String> for the fields
 		let mut user_table: my_types::MysqlTable<User>= my_types::MysqlTable {
 			tb_name: "User".to_string(),
 			db_name: "dbTest".to_string(),
-			key_name: UserFields::userID,
+			key_name: "userID".to_string(),
 			pool:pool, 
-			field: fieldvec,
+			phantom: PhantomData,
 		};
-		assert_eq!(user_table.field[0].to_string(),"firstname");
+	
 		//Create a student to send to the database
 		let nick_kz = User{
 			firstname:"Nick".to_string(),

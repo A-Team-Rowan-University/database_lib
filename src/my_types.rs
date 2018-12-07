@@ -2,16 +2,18 @@ use interface;
 use interface::Entry;
 use interface::Key;
 use interface::Table;
+use interface::QueryType;
 use my;
+use std::marker::PhantomData;
 
+#[derive(Debug, Clone)]
 pub struct MysqlTable<E: Entry>{
 	//names are based on the mysql names
 	pub tb_name:String,
 	pub db_name: String,
-	pub key_name: E::FieldNames,
+	pub key_name: String,
 	pub pool: my::Pool, //The pool that the user is connected to at the time. Use open_mysql(...) to get a Pool
-	pub field: Vec<E::FieldNames>, //List of the fields in the tables, excludes key field
-	
+	pub phantom: PhantomData<E>,
 }
 
 impl <E:Entry>Table<E> for MysqlTable<E>{
@@ -29,7 +31,7 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 		let cmd_db = "USE ".to_owned() + &self.db_name;//Open the proper database
 		con.query(cmd_db).unwrap();//Sending known command
 		
-		let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&self.key_name.to_string()+ " = " + &key.id.to_string();
+		let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&self.key_name+ " = " + &key.id.to_string();
 		let vec_result: Vec<Vec<my::Value>> = con.prep_exec(cmd,())
 			.map(|result|{
 				result.map(|x| x.unwrap()).map(|row|{//Panics if schema is not followed
@@ -67,7 +69,7 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 
 	//Inserts a new row into the table and returns a key
 	//Uses QueryResult.last_insert_id to get a key back
-	fn insert(&mut self, entry: E) -> Self::Key{
+	fn insert(&self, entry: E) -> Self::Key{
 		//Always start with opening mysql
 		//Opening mysql will never panic if done with the openmysql function
 		let mut con = self.pool.get_conn().unwrap();//Open connection to mySQL
@@ -85,7 +87,8 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 		}).collect();
 		let entry_string = entry_vec_string.join(", ");//Creates one big string from the string vec
 		//Repeat entry string but for the values
-		let field_iter = self.field.iter();
+		let fields = E::get_field_names();
+		let field_iter = fields.iter(); //Cuts off the ID
 		let mut value_vec = Vec::new();
 		for i in field_iter{
 			value_vec.push(i.to_string());
@@ -93,9 +96,8 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 		let values = value_vec.join(", ");
 		//Generate the command with mySQL syntax and the 2 previous strings
 		let cmd = &("INSERT INTO ".to_string() + &self.tb_name +
-			" (" + &self.key_name.to_string() + ", " + &values + 
+			" (" + &self.key_name + ", " + &values + 
 			") VALUES (NULL, " + &entry_string + ")");
-
 
 		let qr = con.query(cmd).is_ok();//Send the prepared statement defined earlier and return a bool if it is okay
 		//Get last entry in that table, Because we know what exactly what is sent, the unwraps won't panic
@@ -182,7 +184,8 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 		con.query(cmd_db).unwrap();//Sending known command
 		
 		//Create string for field x = entry x|
-		let field_iter = self.field.iter();
+		let fields = E::get_field_names();
+		let field_iter = fields.iter();
 		let entry_vec = entry.get_fields();//Get the data as a string, must be ordered in the same way as fields
 		let mut entry_iter= entry_vec.iter().map(|x| {
 			ivalue_to_mystring(x)
@@ -195,7 +198,7 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 		let set = set_vec[..].join(", ");	//Combines the set_vec (as a slice) into one string seperated by ,
 		
 		//Create string for cmd
-		let cmd = "UPDATE ".to_string() + &self.tb_name + " SET " + &set + " WHERE "+ &self.key_name.to_string() + " = " +&key.id.to_string();
+		let cmd = "UPDATE ".to_string() + &self.tb_name + " SET " + &set + " WHERE "+ &self.key_name + " = " +&key.id.to_string();
 		
 		//Send cmd and see if it is good
 		let qr = con.query(cmd);
@@ -216,7 +219,7 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 		con.query(cmd_db).unwrap();//Sending known command
 		
 		//let mut cmd = String::new();
-		let cmd = "DELETE FROM ".to_string() + &self.tb_name + " WHERE " + &self.key_name.to_string() + " = " +&key.id.to_string();
+		let cmd = "DELETE FROM ".to_string() + &self.tb_name + " WHERE " + &self.key_name + " = " +&key.id.to_string();
 		let qr = con.query(cmd);
 		
 		let f : Result <(), String>= match qr {
@@ -226,12 +229,7 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
     	f
 	
 	}
-	/*
-	fn update (&mut self, key: Self::Key) ->Result<(), String>{
-		
 	
-	}
-	*/
     fn contains(&self, key: Self::Key) -> bool{
 		//Same as lookup but returns a bool if the query result returns anything
 		//Always start with opening mysql
@@ -240,7 +238,7 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 		let cmd_db = "USE ".to_owned() + &self.db_name;//Open the proper database
 		con.query(cmd_db).unwrap();//Sending known command
 		
-		let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&self.key_name.to_string()+ " = " + &key.id.to_string();
+		let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&self.key_name+ " = " + &key.id.to_string();
 		let vec_result: Vec<Vec<my::Value>> = con.prep_exec(cmd,())
 			.map(|result|{
 				result.map(|x| x.unwrap()).map(|row|{
@@ -254,19 +252,126 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 		}else{
 			false
 		}
-	}			
+	}
+/*
+//From the rust book
+enum IpAddr {
+    V4(u8, u8, u8, u8),
+    V6(String),
 }
+*/
+	//Try associating QueryType with the neccessary data, including key
+	//Make a MysqlTableKey<User>::new({struct data});
+	fn query(&self, q: QueryType,  data:Vec<interface::Value>, key: Self::Key) -> Result<Vec<(Self::Key, E)>,String>{
+		// Uses query type to decide wihch function to use
+		// Uses the data vector to get the neccessary data
+		// Uses generic values so it can be combined into 1 vector
+		// 1 assumption: each querytype needs a unique set of data
+		// If the vector order does not match the defined vector order, it wll return an error
+		match &q{
+			QueryType::Lookup=>{
+				//VECTOR ORDER: [] blank vector
+				//Key required
+				let result = self.lookup(key);
+				match result {
+					Some(_) => {
+						let mut result_vec: Vec<(Self::Key,E)> = Vec::new();
+						result_vec.push((key, result.unwrap()));
+						Ok(result_vec)
+					},
+					None =>{
+						Err("Invalid key".to_string())
+					}
+				}
+			
+			},
+			QueryType::Search=>{
+				//VECTOR ORDER: field_name: String, field_value: interface::Value
+				//field_value can be of any Value
+				//No key required
+				
+				//Initialize variables				
+				let mut err_string = String::new(); //Blank string to hold error messages
+				let mut result: Result<Vec<(Self::Key, E)>,String> = Err("temp".to_string());
+				let mut good_field = false; //Default value
+				//First, check if the vector is a valid length (should be 2)
+				
+				if data.len() != 2{
+					err_string = "Wrong vector length".to_string();
+				}
+				else{
+					//Vector is good, continue
+					let field_name = data[0].to_string();
+					let field_value = data[1].to_owned();
+					//Check to see if the field name matches an actual field name
+					let fields = E::get_field_names();
+					let mut field_iter = fields[1..].iter();//Drops the ID and converts the rest to an iterator
+					for the_field in field_iter {
+						if the_field.to_string() == field_name.trim() {
+							good_field = true;//Found a match, so it's a good value
+							result = self.search(the_field.to_owned(),field_value);
+							break;
+						}
+					}
+					if !good_field {
+						err_string = "Could not match given field name to an entry field name".to_string();
+					}
+				}
+				match result {
+					Ok(_) => Ok(result.unwrap()),
+					Err(_) => Err(err_string)
+				}
+			},
+			interface::QueryType::GetAll=>{
+				//VECTOR ORDER: [] blank vector
+				//No key required
+				unimplemented!();
+				
+			},
+			QueryType::PartialSearch=>{
+				unimplemented!()
+			},
+			QueryType::LimitSearch=>{
+				unimplemented!()
+			},
+		
+		}
+	
+	
+	}
+}
+//New function and supporting functions for query
+impl <E:Entry>MysqlTable<E>{
+	fn get_all(&self) -> Result<Vec<(<MysqlTable<E> as Table<E>>::Key, E)>,String>{
+		unimplemented!();
+	} 
+	pub fn new(pool: my::Pool) -> MysqlTable<E>{
+		//The pool that the user is connected to at the time. Use open_mysql(...) to get a Pool
+		MysqlTable {
+			tb_name: "".to_string(),
+			db_name: "".to_string(),
+			key_name: "".to_string(),
+			pool:pool, 
+			phantom: PhantomData,
+		}
+	}
+}
+
+//Generic functions for mySQL
 fn myvalue_to_ivalue(start:&my::Value)->Result<interface::Value,String>{
 	let _temp :interface::Value;
 	match start{
+		//my::Value::TinyInt(_i64) 	=> Ok(interface::Value::Boolean	(my::from_value(start.to_owned()))),
 		my::Value::Int(_i64) 	=> Ok(interface::Value::Integer	(my::from_value(start.to_owned()))),
 		my::Value::Float(_f64)	=> Ok(interface::Value::Float	(my::from_value(start.to_owned()))),
 		my::Value::Bytes(_vec)	=> Ok(interface::Value::String	(my::from_value(start.to_owned()))),
+		//PUT IN BOOLS HERE
 		_ => Err("Failed to convert mySQL Value".to_string()),
 	}
 }
 fn ivalue_to_mystring(data: &interface::Value)->String{
 	match data{
+		interface::Value::Boolean(_i8) => data.to_owned().to_string(),
 		interface::Value::Integer(_i32) => data.to_owned().to_string(),
 		interface::Value::Float(_f32)   => data.to_owned().to_string(),
 		//Strings need quotes around them. This assumes that all other characters have already been escaped
@@ -297,10 +402,11 @@ pub fn open_mysql(user: String, pass:String)-> Result<my::Pool,String>{
 
 
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub struct MysqlTableKey{
-	pub id: usize,
+	pub id: i32,
 	pub valid:bool
 }
+pub static DEFAULT_KEY: MysqlTableKey = MysqlTableKey{id: 0, valid: false};
 
 impl <E:Entry> Key<E> for MysqlTableKey{ }

@@ -3,6 +3,7 @@ use interface::Entry;
 use interface::Key;
 use interface::Table;
 use interface::Value;
+use interface::QueryType;
 
 /**
  *  A key for a VecTable
@@ -45,11 +46,17 @@ impl<E: Entry> Table<E> for VecTable<E> {
 
     type Key = VecTableKey;
 
-    fn insert(&mut self, entry: E) -> Self::Key {
-        self.vector.push((self.next_key, entry));
+    fn insert(&self, entry: E) -> Self::Key {
+        unimplemented!();
+		/*
+		//Commenting this out since it needs a mutable reference. 
+		//As in you can only use this once, and never again.
+		//Yeah nope
+		self.vector.push((self.next_key, entry));
         let key = VecTableKey { id: self.next_key };
         self.next_key += 1;
         key
+		*/
     }
 
     fn lookup(&self, key: Self::Key) -> Option<E> {
@@ -63,6 +70,9 @@ impl<E: Entry> Table<E> for VecTable<E> {
     }
 
 	fn update(&self, _key: Self::Key, _entry: E)-> Result<(), String>{
+		unimplemented!();
+	}
+	fn query(&self, _q: QueryType,  _data:Vec<Value>, _key: Self::Key) -> Result<Vec<(Self::Key, E)>,String>{
 		unimplemented!();
 	}
 	

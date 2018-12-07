@@ -22,7 +22,16 @@ pub enum Value {
     Integer(i32),
     Float(f32),
     String(String),
+	Boolean(bool),
 }
+pub enum QueryType{
+	Lookup,
+	Search,
+	GetAll,
+	PartialSearch,
+	LimitSearch,
+}
+
 impl ToString for Value{
 	fn to_string(&self) -> String{
 		if let Value::Integer(temp) = self{
@@ -86,7 +95,7 @@ pub trait Table<E: Entry> {
     type Key: Key<E>;
 
     /// Insert an entry into the table. Returns a key for the entry in the table.
-    fn insert(&mut self, entry: E) -> Self::Key;
+    fn insert(&self, entry: E) -> Self::Key;
 
     /// Find a key in the table. Returns Some(Entry) if the entry for the key is in the table, None
     /// otherwise.
@@ -106,4 +115,10 @@ pub trait Table<E: Entry> {
     /// Check whether a given key is in the table. Returns true if the key is in the table,
     /// false otherwise
     fn contains(&self, key: Self::Key) -> bool;
+	
+	/// Generic Query Builder
+	/// When complete, it will replce lookup and search
+	/// If the query does not require a key, input DEFAULT_KEY
+	/// This allows for easy addition of more query types
+	fn query(&self, q: QueryType,  data:Vec<Value>, key: Self::Key) -> Result<Vec<(Self::Key, E)>,String>;
 }

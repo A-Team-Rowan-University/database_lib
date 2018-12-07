@@ -7,4 +7,5 @@ authors = ["Tim <timothyhollabaugh@gmail.com>"]
 downcast-rs = "1.0.3"
 mysql = "14.1.1"
 rpassword = "2.0.0"
-
+serde = "1.0.80"
+serde_derive = "1.0.80"
