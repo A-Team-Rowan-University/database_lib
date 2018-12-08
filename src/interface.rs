@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 use std::str::FromStr;
 
-
 /**
  *  Key for an item in a table.
  *  Keys get implemented for each table type. This allows each table to define their own definition
@@ -16,7 +15,6 @@ pub trait ITryInto<T> {
     fn itry_into(self) -> Result<T, String>;
 }
 
-
 #[derive(PartialEq, Debug, Clone)]
 pub enum Value {
     Integer(i32),
@@ -24,44 +22,51 @@ pub enum Value {
     String(String),
     Boolean(bool),
 }
-impl ToString for Value{
-	fn to_string(&self) -> String{
-		if let Value::Integer(temp) = self{
-			temp.to_owned().to_string()
-		}else if let Value::Float(temp) = self{
-			temp.to_owned().to_string()
-		}else if let Value::String(temp) = self{
-			temp.to_owned().to_string()
-		} else {
-			"".to_string()
-			//If you got here, how did you not pass a Value when you ARE a Value
-		}
-		
-	}
+
+impl ToString for Value {
+    fn to_string(&self) -> String {
+        if let Value::Integer(temp) = self {
+            temp.to_owned().to_string()
+        } else if let Value::Float(temp) = self {
+            temp.to_owned().to_string()
+        } else if let Value::String(temp) = self {
+            temp.to_owned().to_string()
+        } else {
+            "".to_string()
+            //If you got here, how did you not pass a Value when you ARE a Value
+        }
+    }
 }
-impl ITryInto<i32> for Value{
-	fn itry_into (self) -> Result<i32, String> {
-		if let Value::Integer(temp) = self{
-			Ok(temp)
-		}else{
-			Err("Converted value to wrong type".to_string())
-}}}
-impl ITryInto<f32> for Value{
-	fn itry_into (self)-> Result<f32, String> {
-		if let Value::Float(temp) = self{
-			Ok(temp)
-		}else{
-			Err("Converted value to wrong type".to_string())
-}}}
-impl ITryInto<String> for Value{
-	fn itry_into(self) -> Result<String, String> {
-		if let Value::String(temp) = self{
-			Ok(temp)
-		}else{
-			Err("Converted value to wrong type".to_string())
-}}}
 
+impl ITryInto<i32> for Value {
+    fn itry_into(self) -> Result<i32, String> {
+        if let Value::Integer(temp) = self {
+            Ok(temp)
+        } else {
+            Err("Converted value to wrong type".to_string())
+        }
+    }
+}
 
+impl ITryInto<f32> for Value {
+    fn itry_into(self) -> Result<f32, String> {
+        if let Value::Float(temp) = self {
+            Ok(temp)
+        } else {
+            Err("Converted value to wrong type".to_string())
+        }
+    }
+}
+
+impl ITryInto<String> for Value {
+    fn itry_into(self) -> Result<String, String> {
+        if let Value::String(temp) = self {
+            Ok(temp)
+        } else {
+            Err("Converted value to wrong type".to_string())
+        }
+    }
+}
 
 pub trait FieldName: PartialEq + Copy + Clone + Debug + FromStr + ToString {}
 
@@ -81,7 +86,6 @@ pub trait Entry: Clone {
  * A table in a database that can store entries.
 */
 pub trait Table<E: Entry> {
-
     /// The Key type for this database.
     /// Must implement the Key trait
     type Key: Key<E>;
@@ -95,10 +99,14 @@ pub trait Table<E: Entry> {
 
     /// Search for entries in the table with a field matching a value. Returns a vector of keys
     /// and entries for the results.
-    fn search(&self, field_name: E::FieldNames, field_value: Value) -> Result<Vec<(Self::Key, E)>,String>;
-	
-	/// Update an entry at a given key with a new entry
-	fn update(&self, key: Self::Key, entry: E)-> Result<(), String>;
+    fn search(
+        &self,
+        field_name: E::FieldNames,
+        field_value: Value,
+    ) -> Result<Vec<(Self::Key, E)>, String>;
+
+    /// Update an entry at a given key with a new entry
+    fn update(&self, key: Self::Key, entry: E) -> Result<(), String>;
 
     /// Removes the entry for the given key in the table. Returns an Ok(()) if successfull,
     /// but an Err(String) is the key could not be found, with an error message in the string.
