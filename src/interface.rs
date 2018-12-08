@@ -25,45 +25,47 @@ pub enum Value {
 
 impl ToString for Value {
     fn to_string(&self) -> String {
-        if let Value::Integer(temp) = self {
-            temp.to_owned().to_string()
-        } else if let Value::Float(temp) = self {
-            temp.to_owned().to_string()
-        } else if let Value::String(temp) = self {
-            temp.to_owned().to_string()
-        } else {
-            "".to_string()
-            //If you got here, how did you not pass a Value when you ARE a Value
+        match self {
+            Value::Integer(temp) => temp.to_string(),
+            Value::Float(temp) => temp.to_string(),
+            Value::String(temp) => temp.clone(),
+            Value::Boolean(temp) => temp.to_string(),
         }
     }
 }
 
 impl ITryInto<i32> for Value {
     fn itry_into(self) -> Result<i32, String> {
-        if let Value::Integer(temp) = self {
-            Ok(temp)
-        } else {
-            Err("Converted value to wrong type".to_string())
+        match self {
+            Value::Integer(temp) => Ok(temp),
+            _ => Err("Converted value to wrong type".to_string()),
         }
     }
 }
 
 impl ITryInto<f32> for Value {
     fn itry_into(self) -> Result<f32, String> {
-        if let Value::Float(temp) = self {
-            Ok(temp)
-        } else {
-            Err("Converted value to wrong type".to_string())
+        match self {
+            Value::Float(temp) => Ok(temp),
+            _ => Err("Converted value to wrong type".to_string()),
         }
     }
 }
 
 impl ITryInto<String> for Value {
     fn itry_into(self) -> Result<String, String> {
-        if let Value::String(temp) = self {
-            Ok(temp)
-        } else {
-            Err("Converted value to wrong type".to_string())
+        match self {
+            Value::String(temp) => Ok(temp),
+            _ => Err("Converted value to wrong type".to_string()),
+        }
+    }
+}
+
+impl ITryInto<bool> for Value {
+    fn itry_into(self) -> Result<bool, String> {
+        match self {
+            Value::Boolean(temp) => Ok(temp),
+            _ => Err("Converted value to wrong type".to_string()),
         }
     }
 }
