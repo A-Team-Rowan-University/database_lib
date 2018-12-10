@@ -46,17 +46,11 @@ impl<E: Entry> Table<E> for VecTable<E> {
 
     type Key = VecTableKey;
 
-    fn insert(&self, entry: E) -> Self::Key {
-        unimplemented!();
-		/*
-		//Commenting this out since it needs a mutable reference. 
-		//As in you can only use this once, and never again.
-		//Yeah nope
+    fn insert(&mut self, entry: E) -> Self::Key {
 		self.vector.push((self.next_key, entry));
         let key = VecTableKey { id: self.next_key };
         self.next_key += 1;
         key
-		*/
     }
 
     fn lookup(&self, key: Self::Key) -> Option<E> {

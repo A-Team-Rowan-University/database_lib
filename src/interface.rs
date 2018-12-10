@@ -95,7 +95,7 @@ pub trait Table<E: Entry> {
     type Key: Key<E>;
 
     /// Insert an entry into the table. Returns a key for the entry in the table.
-    fn insert(&self, entry: E) -> Self::Key;
+    fn insert(&mut self, entry: E) -> Self::Key;
 
     /// Find a key in the table. Returns Some(Entry) if the entry for the key is in the table, None
     /// otherwise.

@@ -69,7 +69,7 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 
 	//Inserts a new row into the table and returns a key
 	//Uses QueryResult.last_insert_id to get a key back
-	fn insert(&self, entry: E) -> Self::Key{
+	fn insert(&mut self, entry: E) -> Self::Key{
 		//Always start with opening mysql
 		//Opening mysql will never panic if done with the openmysql function
 		let mut con = self.pool.get_conn().unwrap();//Open connection to mySQL
