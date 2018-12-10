@@ -62,39 +62,35 @@ impl<E: Entry> Table<E> for VecTable<E> {
         None
     }
 
-	fn update(&self, _key: Self::Key, _entry: E)-> Result<(), String>{
-		unimplemented!();
-	}
-	
-    fn search(&self, field_name: E::FieldNames, field_value: Value) -> Result<Vec<(Self::Key, E)>,String> {
-		let mut good_value:bool = true;
-		let temp = self.vector.iter().fold(Vec::new(), |mut v, (id, e)| {
-            if let Some(value) = e.get_field(field_name) {
-                if value == field_value {
-                    v.push((VecTableKey{id: *id}, e.clone()));
-                }
-            }else{
-					good_value = false;
-			}
-			v
+    fn update(&self, _key: Self::Key, _entry: E) -> Result<(), String> {
+        unimplemented!();
+    }
+
+    fn search(
+        &self,
+        field_name: E::FieldNames,
+        field_value: Value,
+    ) -> Result<Vec<(Self::Key, E)>, String> {
+        let temp = self.vector.iter().fold(Vec::new(), |mut v, (id, e)| {
+            if e.get_field(field_name) == field_value {
+                v.push((VecTableKey { id: *id }, e.clone()));
+            }
+            v
         });
-		if good_value ==true{
-			Ok(temp)
-		}
-		else{
-			Err("Error converting vec in vectable".to_string())
-		}
+        Ok(temp)
     }
 
     fn remove(&mut self, key: Self::Key) -> Result<(), String> {
-        let index = self.vector.iter().fold(None, |i, (id, _e)| {
-            if *id == key.id {
-                Some(*id)
-            } else {
-                i
-            }
-        });
-
+        let index = self.vector.iter().fold(
+            None,
+            |i, (id, _e)| {
+                if *id == key.id {
+                    Some(*id)
+                } else {
+                    i
+                }
+            },
+        );
 
         if let Some(index) = index {
             self.vector.remove(index);

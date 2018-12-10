@@ -88,10 +88,10 @@ impl Entry for Department {
         vec![Value::String(self.name.clone()), Value::String(self.abreviation.clone())]
     }
 
-    fn get_field(&self, field_name: DepartmentFields) -> Option<Value> {
+    fn get_field(&self, field_name: DepartmentFields) -> Value {
         match field_name {
-            DepartmentFields::Name => Some(Value::String(self.name.clone())),
-            DepartmentFields::Abreviation => Some(Value::String(self.abreviation.clone())),
+            DepartmentFields::Name => Value::String(self.name.clone()),
+            DepartmentFields::Abreviation => Value::String(self.abreviation.clone()),
         }
     }
 }
@@ -161,7 +161,7 @@ mod department_tests {
 
         let first_name = department.get_field(DepartmentFields::Name);
 
-        assert_eq!(first_name, Some(Value::String("Electrical and Computer Engineering".to_string())));
+        assert_eq!(first_name, Value::String("Electrical and Computer Engineering".to_string()));
     }
 }
 
@@ -231,10 +231,10 @@ impl Entry for User {
         vec![Value::String(self.first_name.clone()), Value::String(self.last_name.clone())]
     }
 
-    fn get_field(&self, field_name: UserFields) -> Option<Value> {
+    fn get_field(&self, field_name: UserFields) -> Value {
         match field_name {
-            UserFields::FirstName => Some(Value::String(self.first_name.clone())),
-            UserFields::LastName => Some(Value::String(self.last_name.clone())),
+            UserFields::FirstName => Value::String(self.first_name.clone()),
+            UserFields::LastName => Value::String(self.last_name.clone()),
         }
     }
 }
@@ -304,6 +304,6 @@ mod user_tests {
 
         let first_name = user.get_field(UserFields::FirstName);
 
-        assert_eq!(first_name, Some(Value::String("Tim".to_string())));
+        assert_eq!(first_name, Value::String("Tim".to_string()));
     }
 }

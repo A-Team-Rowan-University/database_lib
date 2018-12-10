@@ -81,7 +81,7 @@ pub trait Entry: Clone {
     fn from_fields(values: &[Value]) -> Result<Self, String>;
     fn get_field_names() -> Vec<Self::FieldNames>;
     fn get_fields(&self) -> Vec<Value>;
-    fn get_field(&self, field_name: Self::FieldNames) -> Option<Value>;
+    fn get_field(&self, field_name: Self::FieldNames) -> Value;
 }
 
 /**
