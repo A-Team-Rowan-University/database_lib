@@ -1,4 +1,3 @@
-
 use interface::Entry;
 use interface::Key;
 use interface::Table;
@@ -15,7 +14,7 @@ pub struct VecTableKey {
     id: usize,
 }
 
-impl<E: Entry> Key<E> for VecTableKey { }
+impl<E: Entry> Key<E> for VecTableKey {}
 
 /**
  *  A table implemented as a vector. Inserting will add to the end of the vector, and keys are the
@@ -29,7 +28,6 @@ pub struct VecTable<E: Entry> {
 }
 
 impl<E: Entry> VecTable<E> {
-
     /**
      *  Gives a new `VecTable` with an empty vector
      */
@@ -42,7 +40,6 @@ impl<E: Entry> VecTable<E> {
 }
 
 impl<E: Entry> Table<E> for VecTable<E> {
-
     type Key = VecTableKey;
 
     fn insert(&mut self, entry: E) -> Self::Key {
@@ -55,7 +52,7 @@ impl<E: Entry> Table<E> for VecTable<E> {
     fn lookup(&self, key: Self::Key) -> Option<E> {
         for (k, e) in &self.vector {
             if key.id == *k {
-                return Some(e.clone())
+                return Some(e.clone());
             }
         }
 
@@ -108,12 +105,12 @@ impl<E: Entry> Table<E> for VecTable<E> {
 #[cfg(test)]
 mod tests {
 
-    use tests::Department;
-    use tests::DepartmentFields;
     use interface::Table;
     use interface::Value;
-    use vec_table::VecTableKey;
+    use tests::Department;
+    use tests::DepartmentFields;
     use vec_table::VecTable;
+    use vec_table::VecTableKey;
 
     #[test]
     fn test_vectable_key_partial_eq() {
@@ -125,7 +122,6 @@ mod tests {
 
     #[test]
     fn test_vectable() {
-
         let mut department_table: VecTable<Department> = VecTable::new();
 
         let ece_department = Department {
@@ -137,13 +133,15 @@ mod tests {
 
         let ece_department_after = department_table.lookup(ece_key).unwrap();
 
-        assert_eq!(ece_department_after.name, "Electrical and Computer Engineering".to_string());
+        assert_eq!(
+            ece_department_after.name,
+            "Electrical and Computer Engineering".to_string()
+        );
         assert_eq!(ece_department_after.abreviation, "ECE".to_string());
     }
 
     #[test]
     fn test_search() {
-
         let mut department_table: VecTable<Department> = VecTable::new();
 
         let ece_key = department_table.insert(Department {
@@ -156,17 +154,19 @@ mod tests {
             abreviation: "ME".to_string(),
         });
 
-        let (found_key, _found_entry) = department_table.search(
-            DepartmentFields::Abreviation,
-            Value::String("ECE".to_string())
-        ).unwrap().pop().unwrap();
+        let (found_key, _found_entry) = department_table
+            .search(
+                DepartmentFields::Abreviation,
+                Value::String("ECE".to_string()),
+            ).unwrap()
+            .pop()
+            .unwrap();
 
         assert_eq!(ece_key, found_key);
     }
 
     #[test]
     fn test_vectable_contains() {
-
         let mut department_table: VecTable<Department> = VecTable::new();
 
         let ece_key = department_table.insert(Department {
@@ -185,7 +185,6 @@ mod tests {
 
     #[test]
     fn test_vectable_remove() {
-
         let mut department_table: VecTable<Department> = VecTable::new();
 
         let ece_key = department_table.insert(Department {

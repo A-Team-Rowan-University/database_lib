@@ -26,19 +26,7 @@ pub enum DepartmentFields {
     Abreviation
 }
 
-impl FieldName for DepartmentFields {
-    /*
-    fn from_string(name: &str) -> Option<Self> {
-        if name == "Name" {
-            Some(DepartmentFields::Name)
-        } else if name == "Abreviation" {
-            Some(DepartmentFields::Abreviation)
-        } else {
-            None
-        }
-    }
-    */
-}
+impl FieldName for DepartmentFields { }
 
 impl Display for DepartmentFields {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
