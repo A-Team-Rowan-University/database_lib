@@ -305,7 +305,7 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 				}
 				let lim_cmd = " ORDER BY ".to_string() + &sort_field.to_string()+&sort_string+"LIMIT "+&start_limit.to_string()+", "+&limit.to_string();
 
-				let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&field.to_owned().to_string()+ " = " + &val.to_owned().to_string() + &lim_cmd;
+				let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&field.to_owned().to_string()+ " = " + &ivalue_to_mystring(&val) + &lim_cmd;
 		
 				let vec_result: Result<Vec<(MysqlTableKey, E)>,String> = con.prep_exec(cmd,()).map(|result|{
 					result.map(|x| x.unwrap()).map(|row|{
@@ -419,7 +419,7 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 				let lim_cmd = " ORDER BY ".to_string() + &sort_field.to_string()+&sort_string+"LIMIT "+&start_limit.to_string()+", "+&limit.to_string();
 				
 				//Make and send the command
-				let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&field.to_owned().to_string()+ " LIKE " + &search_val + &lim_cmd;
+				let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&field.to_owned().to_string()+ " LIKE " + &ivalue_to_mystring(&val) + &lim_cmd;
 				let vec_result: Result<Vec<(MysqlTableKey, E)>,String> = con.prep_exec(cmd,()).map(|result|{
 					result.map(|x| x.unwrap()).map(|row|{
 						//Iterates through each row, panics if the schema is not followed
