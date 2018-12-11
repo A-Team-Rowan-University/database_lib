@@ -10,6 +10,7 @@ use std::str::FromStr;
 use interface::Entry;
 use interface::Value;
 use interface::FieldName;
+use interface::Table;
 
 /**
  *  Test entry with no keys for anything
@@ -49,11 +50,11 @@ impl FromStr for DepartmentFields {
     }
 }
 
-impl Entry for Department {
+impl<T: Table<Self>> Entry<T> for Department {
 
     type FieldNames = DepartmentFields;
 
-    fn from_fields(values: &[Value]) -> Result<Self, String> {
+    fn from_fields(values: &[Value<Self, T>]) -> Result<Self, String> {
         if let Value::String(ref name) = values[0] {
             if let Value::String(ref abreviation) = values[1] {
                 Ok(Department {
@@ -72,11 +73,11 @@ impl Entry for Department {
         vec![DepartmentFields::Name, DepartmentFields::Abreviation]
     }
 
-    fn get_fields(&self) -> Vec<Value> {
+    fn get_fields(&self) -> Vec<Value<Self, T>> {
         vec![Value::String(self.name.clone()), Value::String(self.abreviation.clone())]
     }
 
-    fn get_field(&self, field_name: DepartmentFields) -> Value {
+    fn get_field(&self, field_name: DepartmentFields) -> Value<Self, T> {
         match field_name {
             DepartmentFields::Name => Value::String(self.name.clone()),
             DepartmentFields::Abreviation => Value::String(self.abreviation.clone()),
@@ -92,6 +93,8 @@ mod department_tests {
     use tests::Department;
     use tests::DepartmentFields;
 
+    use vec_table::VecTable;
+
     use interface::Entry;
     use interface::Value;
 
@@ -106,7 +109,7 @@ mod department_tests {
 
     #[test]
     fn test_department_from_fields() {
-        let fields = [
+        let fields: [Value<Department<VecTable>, VecTable<Department>>; 2] = [
             Value::String("Electrical and Computer Engineering".to_string()),
             Value::String("ECE".to_string())
         ];
@@ -192,11 +195,11 @@ impl FromStr for UserFields {
     }
 }
 
-impl Entry for User {
+impl<T: Table<Self>> Entry<T> for User {
 
     type FieldNames = UserFields;
 
-    fn from_fields(values: &[Value]) -> Result<Self, String> {
+    fn from_fields(values: &[Value<Self, T>]) -> Result<Self, String> {
         if let Value::String(ref first_name) = values[0] {
             if let Value::String(ref last_name) = values[1] {
                 Ok(User {
@@ -215,11 +218,11 @@ impl Entry for User {
         vec![UserFields::FirstName, UserFields::LastName]
     }
 
-    fn get_fields(&self) -> Vec<Value> {
+    fn get_fields(&self) -> Vec<Value<Self, T>> {
         vec![Value::String(self.first_name.clone()), Value::String(self.last_name.clone())]
     }
 
-    fn get_field(&self, field_name: UserFields) -> Value {
+    fn get_field(&self, field_name: UserFields) -> Value<Self, T> {
         match field_name {
             UserFields::FirstName => Value::String(self.first_name.clone()),
             UserFields::LastName => Value::String(self.last_name.clone()),

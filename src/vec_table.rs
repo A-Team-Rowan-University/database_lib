@@ -1,3 +1,5 @@
+use std::fmt;
+
 use interface::Entry;
 use interface::Key;
 use interface::Table;
@@ -14,7 +16,15 @@ pub struct VecTableKey {
     id: usize,
 }
 
-impl<E: Entry> Key<E> for VecTableKey {}
+impl<E: Entry<T>, T: Table<E>> Key<E, T> for VecTableKey {
+
+}
+
+impl fmt::Display for VecTableKey {
+    fn fmt(&self, f: &mut fmt:: Formatter) -> fmt::Result {
+        write!(f, "{}", self.id)
+    }
+}
 
 /**
  *  A table implemented as a vector. Inserting will add to the end of the vector, and keys are the
@@ -22,12 +32,12 @@ impl<E: Entry> Key<E> for VecTableKey {}
  *  Intended for testing and example purposes only.
 */
 #[derive(Default)]
-pub struct VecTable<E: Entry> {
+pub struct VecTable<E: Entry<VecTable<E>>> {
     vector: Vec<(usize, E)>,
     next_key: usize,
 }
 
-impl<E: Entry> VecTable<E> {
+impl<E: Entry<Self>> VecTable<E> {
     /**
      *  Gives a new `VecTable` with an empty vector
      */
@@ -39,7 +49,7 @@ impl<E: Entry> VecTable<E> {
     }
 }
 
-impl<E: Entry> Table<E> for VecTable<E> {
+impl<E: Entry<Self>> Table<E> for VecTable<E> {
     type Key = VecTableKey;
 
     fn insert(&mut self, entry: E) -> Self::Key {
@@ -66,7 +76,7 @@ impl<E: Entry> Table<E> for VecTable<E> {
     fn search(
         &self,
         field_name: E::FieldNames,
-        field_value: Value,
+        field_value: Value<E, Self>,
     ) -> Result<Vec<(Self::Key, E)>, String> {
         let temp = self.vector.iter().fold(Vec::new(), |mut v, (id, e)| {
             if e.get_field(field_name) == field_value {
