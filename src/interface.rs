@@ -24,14 +24,34 @@ pub enum Value {
     String(String),
 	Boolean(bool),
 }
+
 //Enum for query
 //Shows what type of query along with the data needed for it
 //The data does not include the key becuase it needs Self
+
+
+//Advanced search (multiple fields, full or partial)
 pub enum QueryType<E:Entry>{
+	//Doesn't require input, but it does need a key in the query call
 	Lookup,
-	Search(E::FieldNames, Value, u8), //FieldName for Field being searched, Value for what's being searched
-	GetAll(u8), //Limit
-	PartialSearch(E::FieldNames, Value, u8), //FieldName for Field being searched, Value for what's being searched
+	//FieldName for Field being searched, Value for what's being searched
+	//Field to sort by, Direction to sort in, page number
+	Search(E::FieldNames, Value, u16,E::FieldNames,SortDirection,u16), 
+	//Limit, Field to sort by, Direction to sort in, page number
+	//Field to sort by, Direction to sort in, page number
+	GetAll(u16,E::FieldNames,SortDirection,u16), 
+	//FieldName for Field being searched, Value for what's being searched
+	// Field to sort by, Direction to sort in, page number
+	PartialSearch(E::FieldNames, Value, u16,E::FieldNames,SortDirection,u16),
+	//FieldNames for Fields being searched, Values for what's being searched (in the same order)
+	// Field to sort by, Direction to sort in, page number
+	MultiSearch(Vec<E::FieldNames>, Vec<Value>, u16,E::FieldNames,SortDirection,u16),
+	
+}
+//This enum is to determine direction in QueryType
+pub enum SortDirection {
+	Asc, //Ascending
+	Desc //Descending
 }
 
 impl ToString for Value{

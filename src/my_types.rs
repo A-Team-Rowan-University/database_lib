@@ -7,7 +7,7 @@ use my;
 use std::marker::PhantomData;
 use interface::ITryInto;
 
-pub static MAX_LIMIT : u8 = 100;
+pub static MAX_LIMIT : u16 = 100;
 pub static DEFAULT_KEY: MysqlTableKey = MysqlTableKey{id: 0, valid: false};
 
 #[derive(Debug, Clone)]
@@ -76,6 +76,7 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 	fn insert(&mut self, entry: E) -> Self::Key{
 		//Always start with opening mysql
 		//Opening mysql will never panic if done with the openmysql function
+		//INSERT INTO tb_name (fields ) VALUES (values (NULL for auto increment));
 		let mut con = self.pool.get_conn().unwrap();//Open connection to mySQL
 		let cmd_db = "USE ".to_owned() + &self.db_name;//Open the proper database
 		con.query(cmd_db).unwrap();//Sending known command
@@ -282,7 +283,7 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 				}
 			
 			},
-			QueryType::Search(field,val,lim)=>{
+			QueryType::Search(field,val,lim,sort_field,sort_dir, pg)=>{
 				//No key required
 				//SELECT * FROM tb_name WHERE field_name = field_value
 				//Always start with opening mysql
@@ -291,7 +292,20 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 				let cmd_db = "USE ".to_owned() + &self.db_name;//Open the proper database
 				con.query(cmd_db).unwrap();//Sending known command
 				
-				let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&field.to_owned().to_string()+ " = " + &val.to_owned().to_string() + " LIMIT " + &lim.to_owned().to_string();
+				let mut limit = lim;
+				if limit > &MAX_LIMIT {
+					limit = &MAX_LIMIT;
+				}
+				let start_limit = limit*(pg-1);
+				//Sort and limit string
+				let sort_string: String;
+				match &sort_dir {
+					interface::SortDirection::Asc =>  sort_string = " ASC ".to_string(),
+					interface::SortDirection::Desc => sort_string = " DESC ".to_string(),
+				}
+				let lim_cmd = " ORDER BY ".to_string() + &sort_field.to_string()+&sort_string+"LIMIT "+&start_limit.to_string()+", "+&limit.to_string();
+
+				let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&field.to_owned().to_string()+ " = " + &val.to_owned().to_string() + &lim_cmd;
 		
 				let vec_result: Result<Vec<(MysqlTableKey, E)>,String> = con.prep_exec(cmd,()).map(|result|{
 					result.map(|x| x.unwrap()).map(|row|{
@@ -317,7 +331,7 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 					vec_result
 				
 			},
-			interface::QueryType::GetAll(lim)=>{
+			interface::QueryType::GetAll(lim,sort_field,sort_dir, pg)=>{
 				//No key required
 				//Return all of the given table, but does require a limit
 				//Limit is checked against MAX_LIMIT
@@ -327,7 +341,22 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 				let mut con = self.pool.get_conn().unwrap();//Open connection to mySQL
 				let cmd_db = "USE ".to_owned() + &self.db_name;//Open the proper database
 				con.query(cmd_db).unwrap();//Sending known command
-				let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " Limit "+ &lim.to_string();
+				
+				let mut limit = lim;
+				if limit > &MAX_LIMIT {
+					limit = &MAX_LIMIT;
+				}
+				let start_limit = limit*(pg-1);
+				//Sort and limit string
+				let sort_string: String;
+				match &sort_dir {
+					interface::SortDirection::Asc =>  sort_string = " ASC ".to_string(),
+					interface::SortDirection::Desc => sort_string = " DESC".to_string(),
+				}
+				let lim_cmd = " ORDER BY ".to_string() + &sort_field.to_string()+&sort_string+"LIMIT "+&start_limit.to_string()+", "+&limit.to_string();
+			
+				
+				let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ &lim_cmd;
 				let vec_result: Result<Vec<(MysqlTableKey, E)>,String> = con.prep_exec(cmd,()).map(|result|{
 					result.map(|x| x.unwrap()).map(|row|{
 						//Iterates through each row, panics if the schema is not followed
@@ -351,7 +380,7 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 				}).unwrap();//Panics if schema is not followed
 					vec_result
 			},
-			QueryType::PartialSearch(field,val,lim)=>{
+			QueryType::PartialSearch(field,val,lim,sort_field,sort_dir, pg)=>{
 				//SELECT * FROM tb_name WHERE field_name LIKE *field_value*
 				//Always start with opening mysql
 				//Opening mysql will never panic if the pool is done with the openmysql function
@@ -376,8 +405,21 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 						search_val ="'%".to_string() + &temp.join("\\\'") + "%'"//Adds a \' in between each gap and adds the %
 					},
 				}
+				let mut limit = lim;
+				if limit > &MAX_LIMIT {
+					limit = &MAX_LIMIT;
+				}
+				let start_limit = limit*(pg-1);
+				//Sort and limit string
+				let sort_string: String;
+				match &sort_dir {
+					interface::SortDirection::Asc =>  sort_string = " ASC ".to_string(),
+					interface::SortDirection::Desc => sort_string = " DESC ".to_string(),
+				}
+				let lim_cmd = " ORDER BY ".to_string() + &sort_field.to_string()+&sort_string+"LIMIT "+&start_limit.to_string()+", "+&limit.to_string();
+				
 				//Make and send the command
-				let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&field.to_owned().to_string()+ " LIKE " + &search_val + " LIMIT " + &lim.to_owned().to_string();
+				let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&field.to_owned().to_string()+ " LIKE " + &search_val + &lim_cmd;
 				let vec_result: Result<Vec<(MysqlTableKey, E)>,String> = con.prep_exec(cmd,()).map(|result|{
 					result.map(|x| x.unwrap()).map(|row|{
 						//Iterates through each row, panics if the schema is not followed
@@ -397,11 +439,73 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 							id: ivec[0].to_owned().itry_into().unwrap(),
 							valid: true
 						};
+
 						Ok((this_key,this_entry))
 					}).collect()
 				}).unwrap();//Panics if schema is not followed
 					vec_result
 			
+			},
+			QueryType::MultiSearch(field_vec, val_vec, lim,sort_field,sort_dir,pg)=>{
+				//No key required
+				//SELECT * FROM tb_name WHERE field_name[0] = field_value[0] AND field_name[1] = field_value[1]
+				//Always start with opening mysql
+				//Opening mysql will never panic if the pool is done with the openmysql function
+				let mut con = self.pool.get_conn().unwrap();//Open connection to mySQL
+				let cmd_db = "USE ".to_owned() + &self.db_name;//Open the proper database
+				con.query(cmd_db).unwrap();//Sending known command
+				
+				let mut limit = lim;
+				if limit > &MAX_LIMIT {
+					limit = &MAX_LIMIT;
+				}
+				let start_limit = limit*(pg-1);
+				//Sort and limit string
+				let sort_string: String;
+				match &sort_dir {
+					interface::SortDirection::Asc =>  sort_string = " ASC ".to_string(),
+					interface::SortDirection::Desc => sort_string = " DESC ".to_string(),
+				}
+				let lim_cmd = " ORDER BY ".to_string() + &sort_field.to_string()+&sort_string+"LIMIT "+&start_limit.to_string()+", "+&limit.to_string();
+				if field_vec.len() != val_vec.len(){
+					return Err("Field and Value vectors do not pair".to_string())
+				}
+				//Put together the search
+				let mut search_vec = Vec::new();
+				let mut i = 0;
+				while i < field_vec.len() {
+					search_vec.push(field_vec[i].to_string() + " = " + &ivalue_to_mystring(&val_vec[i]));
+					i=i+1;
+				}
+				let search_cmd = search_vec.join(" AND ");
+				let cmd = "SELECT * FROM ".to_string() + &self.tb_name+ " WHERE " +&search_cmd + &lim_cmd;
+				println!("{}",cmd);
+				let vec_result: Result<Vec<(MysqlTableKey, E)>,String> = con.prep_exec(cmd,()).map(|result|{
+					result.map(|x| x.unwrap()).map(|row|{
+						//Iterates through each row, panics if the schema is not followed
+						let vec_data = my::Row::unwrap(row);//Returns a vector of my::Values for each row
+						let iter_data = vec_data.iter(); 
+						let ivec : Vec<interface::Value> = iter_data.map(|r|{
+							myvalue_to_ivalue(r).unwrap() //Changes each my::Value to interface::Value
+						}).collect();
+						let this_entry_result = E::from_fields(&ivec[1..]);
+						match this_entry_result {
+							Err(string) => return Err(string),
+							Ok(_) => ()
+						}
+						let this_entry = this_entry_result.unwrap(); //Unwraps after checking its okay
+						let this_key = MysqlTableKey {
+							id: ivec[0].to_owned().itry_into().unwrap(),
+							valid: true
+						};
+						println!("{:?}",ivec);
+						Ok((this_key,this_entry))
+					}).collect()
+				}).unwrap();//Panics if schema is not followed
+					vec_result
+				
+				
+				
 			},
 		
 		}

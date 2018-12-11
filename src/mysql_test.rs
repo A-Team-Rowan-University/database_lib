@@ -190,14 +190,16 @@ Columns in User
 		let q_nick = user_table.query(interface::QueryType::Lookup,Some(nick_key)).unwrap();
 		assert_eq!(q_nick[0].1.firstname,"Nicholas");
 		
-		let q_parsearch = user_table.query(interface::QueryType::PartialSearch(UserFields::email,interface::Value::String("@".to_string()),2),None).unwrap();
+		let q_parsearch = user_table.query(interface::QueryType::PartialSearch(UserFields::email,interface::Value::String("@".to_string()),2,UserFields::firstname, interface::SortDirection::Asc, 1),None).unwrap();
 		assert_eq!(q_parsearch.len(),2);
 		
-		let q_all = user_table.query(interface::QueryType::GetAll(3),None).unwrap();
+		let q_all = user_table.query(interface::QueryType::GetAll(3,UserFields::firstname, interface::SortDirection::Asc, 1),None).unwrap();
 		assert_eq!(q_all.len(),3);
 
-		
-		
+		let field_vec = vec!(UserFields::firstname, UserFields::lastname);
+		let val_vec = vec!(interface::Value::String("Nick".to_string()),interface::Value::String("Kluzynski".to_string()));
+		let q_multi = user_table.query(interface::QueryType::MultiSearch(field_vec, val_vec,2,UserFields::bannerID,interface::SortDirection::Asc,1),None).unwrap();
+		assert_eq!(q_multi[0].1.firstname, "Nick");
 		
 		let _nick_del = user_table.remove(nick_key).unwrap();//Delete Nick from db so it doesn't get clogged
 
