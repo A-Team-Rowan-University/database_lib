@@ -137,38 +137,6 @@ Columns in User
 	}
 
 	#[test]
-	fn simple_mysql_test(){
-		println!("enter username: ");
-		let mut user = String::new();
-		io::stdin().read_line(&mut user).expect("Failed to read line");
-		user = user.trim().to_string();
-		println!("{}'s password: ",user);
-		let pass = rpassword::read_password().unwrap().trim().to_string();
-		let pool = my_types::open_mysql(user,pass).unwrap();//Open mySQL
-	
-		//Change this to my_types::MysqlTableKey<User>::new({struct data});
-		let mut user_table = my_types::MysqlTable::<User>::new(pool);
-			user_table.tb_name  = "User".to_string();
-			user_table.db_name  = "dbTest".to_string();
-			user_table.key_name = "userID".to_string();
-		//Create a student to send to the database
-		//All strings in the user must have a \' to indicate to mySQL that it is indeed a string
-		let nick_kz = User{
-			firstname:"Nick".to_string(),
-			lastname:"Kluzynski".to_string(),
-			email: "kluzynskn6@students.rowan.edu".to_string(),
-			bannerID: 916181533,
-			
-		};
-		let nick_key:my_types::MysqlTableKey = Some(user_table.insert(nick_kz)).unwrap();
-		assert!(nick_key.valid);
-	
-		let _nick_del = user_table.remove(nick_key).unwrap();//Delete Nick from db so it doesn't get clogged
-	
-	}
-	
-	
-	#[test]
 	fn full_mysql_test(){
 		println!("enter username: ");
 		let mut user = String::new();
@@ -202,7 +170,7 @@ Columns in User
 			bannerID: 916181533,
 			
 		};
-
+		//Testing basic functions
 		let nick_key:my_types::MysqlTableKey = Some(user_table.insert(nick_kz)).unwrap();
 		assert!(nick_key.valid);
 		
@@ -218,6 +186,19 @@ Columns in User
 		let nick_3 = user_table.search(UserFields::firstname,interface::Value::String("\'Nicholas\'".to_string())).unwrap()[0].to_owned().1;//Only saves the entry of the first result
 		assert_eq!(nick_3.lastname,"Kluzynski");
 
+		//Testing query
+		let q_nick = user_table.query(interface::QueryType::Lookup,Some(nick_key)).unwrap();
+		assert_eq!(q_nick[0].1.firstname,"Nicholas");
+		
+		let q_parsearch = user_table.query(interface::QueryType::PartialSearch(UserFields::email,interface::Value::String("@".to_string()),2),None).unwrap();
+		assert_eq!(q_parsearch.len(),2);
+		
+		let q_all = user_table.query(interface::QueryType::GetAll(3),None).unwrap();
+		assert_eq!(q_all.len(),3);
+
+		
+		
+		
 		let _nick_del = user_table.remove(nick_key).unwrap();//Delete Nick from db so it doesn't get clogged
 
 	}

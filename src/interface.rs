@@ -24,12 +24,14 @@ pub enum Value {
     String(String),
 	Boolean(bool),
 }
-pub enum QueryType{
+//Enum for query
+//Shows what type of query along with the data needed for it
+//The data does not include the key becuase it needs Self
+pub enum QueryType<E:Entry>{
 	Lookup,
-	Search,
-	GetAll,
-	PartialSearch,
-	LimitSearch,
+	Search(E::FieldNames, Value, u8), //FieldName for Field being searched, Value for what's being searched
+	GetAll(u8), //Limit
+	PartialSearch(E::FieldNames, Value, u8), //FieldName for Field being searched, Value for what's being searched
 }
 
 impl ToString for Value{
@@ -120,5 +122,5 @@ pub trait Table<E: Entry> {
 	/// When complete, it will replce lookup and search
 	/// If the query does not require a key, input DEFAULT_KEY
 	/// This allows for easy addition of more query types
-	fn query(&self, q: QueryType,  data:Vec<Value>, key: Self::Key) -> Result<Vec<(Self::Key, E)>,String>;
+	fn query(&self, q: QueryType<E>,  key: Option<Self::Key>) -> Result<Vec<(Self::Key, E)>,String>;
 }

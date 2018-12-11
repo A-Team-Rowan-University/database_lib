@@ -66,7 +66,7 @@ impl<E: Entry> Table<E> for VecTable<E> {
 	fn update(&self, _key: Self::Key, _entry: E)-> Result<(), String>{
 		unimplemented!();
 	}
-	fn query(&self, _q: QueryType,  _data:Vec<Value>, _key: Self::Key) -> Result<Vec<(Self::Key, E)>,String>{
+	fn query(&self, _q: QueryType<E>,  _key: Option<Self::Key>) -> Result<Vec<(Self::Key, E)>,String>{
 		unimplemented!();
 	}
 	

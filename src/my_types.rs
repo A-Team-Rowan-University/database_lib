@@ -5,6 +5,10 @@ use interface::Table;
 use interface::QueryType;
 use my;
 use std::marker::PhantomData;
+use interface::ITryInto;
+
+pub static MAX_LIMIT : u8 = 100;
+pub static DEFAULT_KEY: MysqlTableKey = MysqlTableKey{id: 0, valid: false};
 
 #[derive(Debug, Clone)]
 pub struct MysqlTable<E: Entry>{
@@ -118,9 +122,9 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 
 	}	
 	fn search(&self, field_name: E::FieldNames, field_value: interface::Value) -> Result<Vec<(Self::Key, E)>,String>{
-		//SELECT * IN tb_name WHERE field_name = field_value
+		//SELECT * FROM tb_name WHERE field_name = field_value
 		//Always start with opening mysql
-		//Opening mysql will never panic if done with the openmysql function
+		//Opening mysql will never panic if the pool is done with the openmysql function
 		let mut con = self.pool.get_conn().unwrap();//Open connection to mySQL
 		let cmd_db = "USE ".to_owned() + &self.db_name;//Open the proper database
 		con.query(cmd_db).unwrap();//Sending known command
@@ -253,30 +257,23 @@ impl <E:Entry>Table<E> for MysqlTable<E>{
 			false
 		}
 	}
-/*
-//From the rust book
-enum IpAddr {
-    V4(u8, u8, u8, u8),
-    V6(String),
-}
-*/
-	//Try associating QueryType with the neccessary data, including key
+	
 	//Make a MysqlTableKey<User>::new({struct data});
-	fn query(&self, q: QueryType,  data:Vec<interface::Value>, key: Self::Key) -> Result<Vec<(Self::Key, E)>,String>{
-		// Uses query type to decide wihch function to use
-		// Uses the data vector to get the neccessary data
-		// Uses generic values so it can be combined into 1 vector
-		// 1 assumption: each querytype needs a unique set of data
-		// If the vector order does not match the defined vector order, it wll return an error
+	fn query(&self, q: QueryType<E>, key: Option<Self::Key>) -> Result<Vec<(Self::Key, E)>,String>{
+		// Uses query type to decide wihch function to use and get the neccessary data
+		//Because of the need for Self, the key is taken seperately, but isn't always needed
 		match &q{
 			QueryType::Lookup=>{
-				//VECTOR ORDER: [] blank vector
 				//Key required
-				let result = self.lookup(key);
+				if key == None {
+					return Err("Must have a key".to_string())
+				}
+				
+				let result = self.lookup(key.unwrap()); //Unwraps after checking its okay
 				match result {
-					Some(_) => {
+					Some(this_key) => {
 						let mut result_vec: Vec<(Self::Key,E)> = Vec::new();
-						result_vec.push((key, result.unwrap()));
+						result_vec.push((key.unwrap(),this_key)); //Unwraps after checking its okay
 						Ok(result_vec)
 					},
 					None =>{
@@ -285,54 +282,126 @@ enum IpAddr {
 				}
 			
 			},
-			QueryType::Search=>{
-				//VECTOR ORDER: field_name: String, field_value: interface::Value
-				//field_value can be of any Value
+			QueryType::Search(field,val,lim)=>{
 				//No key required
+				//SELECT * FROM tb_name WHERE field_name = field_value
+				//Always start with opening mysql
+				//Opening mysql will never panic if the pool is done with the openmysql function
+				let mut con = self.pool.get_conn().unwrap();//Open connection to mySQL
+				let cmd_db = "USE ".to_owned() + &self.db_name;//Open the proper database
+				con.query(cmd_db).unwrap();//Sending known command
 				
-				//Initialize variables				
-				let mut err_string = String::new(); //Blank string to hold error messages
-				let mut result: Result<Vec<(Self::Key, E)>,String> = Err("temp".to_string());
-				let mut good_field = false; //Default value
-				//First, check if the vector is a valid length (should be 2)
-				
-				if data.len() != 2{
-					err_string = "Wrong vector length".to_string();
-				}
-				else{
-					//Vector is good, continue
-					let field_name = data[0].to_string();
-					let field_value = data[1].to_owned();
-					//Check to see if the field name matches an actual field name
-					let fields = E::get_field_names();
-					let mut field_iter = fields[1..].iter();//Drops the ID and converts the rest to an iterator
-					for the_field in field_iter {
-						if the_field.to_string() == field_name.trim() {
-							good_field = true;//Found a match, so it's a good value
-							result = self.search(the_field.to_owned(),field_value);
-							break;
+				let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&field.to_owned().to_string()+ " = " + &val.to_owned().to_string() + " LIMIT " + &lim.to_owned().to_string();
+		
+				let vec_result: Result<Vec<(MysqlTableKey, E)>,String> = con.prep_exec(cmd,()).map(|result|{
+					result.map(|x| x.unwrap()).map(|row|{
+						//Iterates through each row, panics if the schema is not followed
+						let vec_data = my::Row::unwrap(row);//Returns a vector of my::Values for each row
+						let iter_data = vec_data.iter(); 
+						let ivec : Vec<interface::Value> = iter_data.map(|r|{
+							myvalue_to_ivalue(r).unwrap() //Changes each my::Value to interface::Value
+						}).collect();
+						let this_entry_result = E::from_fields(&ivec[1..]);
+						match this_entry_result {
+							Err(string) => return Err(string),
+							Ok(_) => ()
 						}
-					}
-					if !good_field {
-						err_string = "Could not match given field name to an entry field name".to_string();
-					}
-				}
-				match result {
-					Ok(_) => Ok(result.unwrap()),
-					Err(_) => Err(err_string)
-				}
-			},
-			interface::QueryType::GetAll=>{
-				//VECTOR ORDER: [] blank vector
-				//No key required
-				unimplemented!();
+						let this_entry = this_entry_result.unwrap(); //Unwraps after checking its okay
+						let this_key = MysqlTableKey {
+							id: ivec[0].to_owned().itry_into().unwrap(),
+							valid: true
+						};
+						Ok((this_key,this_entry))
+					}).collect()
+				}).unwrap();//Panics if schema is not followed
+					vec_result
 				
 			},
-			QueryType::PartialSearch=>{
-				unimplemented!()
+			interface::QueryType::GetAll(lim)=>{
+				//No key required
+				//Return all of the given table, but does require a limit
+				//Limit is checked against MAX_LIMIT
+				
+				//Always start with opening mysql
+				//Opening mysql will never panic if done with the openmysql function
+				let mut con = self.pool.get_conn().unwrap();//Open connection to mySQL
+				let cmd_db = "USE ".to_owned() + &self.db_name;//Open the proper database
+				con.query(cmd_db).unwrap();//Sending known command
+				let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " Limit "+ &lim.to_string();
+				let vec_result: Result<Vec<(MysqlTableKey, E)>,String> = con.prep_exec(cmd,()).map(|result|{
+					result.map(|x| x.unwrap()).map(|row|{
+						//Iterates through each row, panics if the schema is not followed
+						let vec_data = my::Row::unwrap(row);//Returns a vector of my::Values for each row
+						let iter_data = vec_data.iter(); 
+						let ivec : Vec<interface::Value> = iter_data.map(|r|{
+							myvalue_to_ivalue(r).unwrap() //Changes each my::Value to interface::Value
+						}).collect();
+						let this_entry_result = E::from_fields(&ivec[1..]);
+						match this_entry_result {
+							Err(string) => return Err(string),
+							Ok(_) => ()
+						}
+						let this_entry = this_entry_result.unwrap(); //Unwraps after checking its okay
+						let this_key = MysqlTableKey {
+							id: ivec[0].to_owned().itry_into().unwrap(),
+							valid: true
+						};
+						Ok((this_key,this_entry))
+					}).collect()
+				}).unwrap();//Panics if schema is not followed
+					vec_result
 			},
-			QueryType::LimitSearch=>{
-				unimplemented!()
+			QueryType::PartialSearch(field,val,lim)=>{
+				//SELECT * FROM tb_name WHERE field_name LIKE *field_value*
+				//Always start with opening mysql
+				//Opening mysql will never panic if the pool is done with the openmysql function
+				let mut con = self.pool.get_conn().unwrap();//Open connection to mySQL
+				let cmd_db = "USE ".to_owned() + &self.db_name;//Open the proper database
+				con.query(cmd_db).unwrap();//Sending known command
+				
+				//Change the value to a proper search term.
+				//Proper searches need '% ... %'
+				let mut search_val : String;
+				//This is just a modified ivalue_to_mystring
+				match val{
+					//Change bool to an if true => 1
+					interface::Value::Boolean(_i8) =>  search_val = "'%".to_string() + &val.to_owned().to_string()+"%'",
+					interface::Value::Integer(_i32) => search_val = "'%".to_string() + &val.to_owned().to_string()+"%'",
+					interface::Value::Float(_f32)   => search_val = "'%".to_string() + &val.to_owned().to_string()+"%'",
+					//Strings need quotes around them. This assumes that all other characters have already been escaped
+					interface::Value::String(_string) => {
+						let temp :Vec<String> = val.to_owned().to_string().split('\'').map({|x|
+							x.to_string() //Creates a gap wherever there was a ' (deletes the ')
+						}).collect();
+						search_val ="'%".to_string() + &temp.join("\\\'") + "%'"//Adds a \' in between each gap and adds the %
+					},
+				}
+				//Make and send the command
+				let cmd = "SELECT * FROM ".to_string()+&self.tb_name+ " WHERE "+&field.to_owned().to_string()+ " LIKE " + &search_val + " LIMIT " + &lim.to_owned().to_string();
+				let vec_result: Result<Vec<(MysqlTableKey, E)>,String> = con.prep_exec(cmd,()).map(|result|{
+					result.map(|x| x.unwrap()).map(|row|{
+						//Iterates through each row, panics if the schema is not followed
+						let vec_data = my::Row::unwrap(row);//Returns a vector of my::Values for each row
+						let iter_data = vec_data.iter(); 
+						let ivec : Vec<interface::Value> = iter_data.map(|r|{
+							let temp = myvalue_to_ivalue(r).unwrap(); //Changes each my::Value to interface::Value
+							temp
+						}).collect();
+						let this_entry_result = E::from_fields(&ivec[1..]);
+						match this_entry_result {
+							Err(string) => return Err(string),
+							Ok(_) => ()
+						}
+						let this_entry = this_entry_result.unwrap(); //Unwraps after checking its okay
+						let this_key = MysqlTableKey {
+							id: ivec[0].to_owned().itry_into().unwrap(),
+							valid: true
+						};
+						Ok((this_key,this_entry))
+					}).collect()
+				}).unwrap();//Panics if schema is not followed
+					vec_result
+			
 			},
 		
 		}
@@ -342,9 +411,6 @@ enum IpAddr {
 }
 //New function and supporting functions for query
 impl <E:Entry>MysqlTable<E>{
-	fn get_all(&self) -> Result<Vec<(<MysqlTable<E> as Table<E>>::Key, E)>,String>{
-		unimplemented!();
-	} 
 	pub fn new(pool: my::Pool) -> MysqlTable<E>{
 		//The pool that the user is connected to at the time. Use open_mysql(...) to get a Pool
 		MysqlTable {
@@ -407,6 +473,5 @@ pub struct MysqlTableKey{
 	pub id: i32,
 	pub valid:bool
 }
-pub static DEFAULT_KEY: MysqlTableKey = MysqlTableKey{id: 0, valid: false};
 
 impl <E:Entry> Key<E> for MysqlTableKey{ }
