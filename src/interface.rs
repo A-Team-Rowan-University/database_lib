@@ -70,6 +70,52 @@ impl ITryInto<bool> for Value {
     }
 }
 
+mod value_tests {
+
+    use interface::Value;
+    use interface::ITryInto;
+
+    #[test]
+    fn value_string_to_string() {
+        assert_eq!(Value::String("hello".to_string()).to_string(), "hello".to_string());
+    }
+
+    #[test]
+    fn value_integer_to_string() {
+        assert_eq!(Value::Integer(42).to_string(), "42".to_string());
+    }
+
+    #[test]
+    fn value_float_to_string() {
+        assert_eq!(Value::Float(42.612).to_string(), "42.612".to_string());
+    }
+
+    #[test]
+    fn value_bool_to_string() {
+        assert_eq!(Value::Boolean(true).to_string(), "true".to_string());
+    }
+
+    #[test]
+    fn value_into_i32() {
+        assert_eq!(Value::Integer(42).itry_into(), Ok(42));
+    }
+
+    #[test]
+    fn value_into_f32() {
+        assert_eq!(Value::Float(42.0).itry_into(), Ok(42.0));
+    }
+
+    #[test]
+    fn value_into_string() {
+        assert_eq!(Value::String("hello".to_string()).itry_into(), Ok("hello".to_string()));
+    }
+
+    #[test]
+    fn value_into_bool() {
+        assert_eq!(Value::Boolean(true).itry_into(), Ok(true));
+    }
+}
+
 //Enum for query
 //Shows what type of query along with the data needed for it
 //The data does not include the key becuase it needs Self
