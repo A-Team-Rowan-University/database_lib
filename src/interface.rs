@@ -70,6 +70,35 @@ impl ITryInto<bool> for Value {
     }
 }
 
+//Enum for query
+//Shows what type of query along with the data needed for it
+//The data does not include the key becuase it needs Self
+
+
+//Advanced search (multiple fields, full or partial)
+pub enum QueryType<E:Entry>{
+	//Doesn't require input, but it does need a key in the query call
+	Lookup,
+	//FieldName for Field being searched, Value for what's being searched
+	//Field to sort by, Direction to sort in, page number
+	Search(E::FieldNames, Value, u16,E::FieldNames,SortDirection,u16), 
+	//Limit, Field to sort by, Direction to sort in, page number
+	//Field to sort by, Direction to sort in, page number
+	GetAll(u16,E::FieldNames,SortDirection,u16), 
+	//FieldName for Field being searched, Value for what's being searched
+	// Field to sort by, Direction to sort in, page number
+	PartialSearch(E::FieldNames, Value, u16,E::FieldNames,SortDirection,u16),
+	//FieldNames for Fields being searched, Values for what's being searched (in the same order)
+	// Field to sort by, Direction to sort in, page number
+	MultiSearch(Vec<E::FieldNames>, Vec<Value>, u16,E::FieldNames,SortDirection,u16),
+	
+}
+//This enum is to determine direction in QueryType
+pub enum SortDirection {
+	Asc, //Ascending
+	Desc //Descending
+}
+
 pub trait FieldName: PartialEq + Copy + Clone + Debug + FromStr + ToString {}
 
 /**
@@ -117,4 +146,10 @@ pub trait Table<E: Entry> {
     /// Check whether a given key is in the table. Returns true if the key is in the table,
     /// false otherwise
     fn contains(&self, key: Self::Key) -> bool;
+	
+	/// Generic Query Builder
+	/// When complete, it will replce lookup and search
+	/// If the query does not require a key, input DEFAULT_KEY
+	/// This allows for easy addition of more query types
+	fn query(&self, q: QueryType<E>,  key: Option<Self::Key>) -> Result<Vec<(Self::Key, E)>,String>;
 }

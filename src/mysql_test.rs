@@ -11,6 +11,7 @@ mod mysql_test{
 	use std::fmt::Display;
 	use interface::ITryInto;
 	use std::io;
+	use std::marker::PhantomData;
 
 //The following is an example of how to use the my_types to both send and recieve data from mySQL.
 //Because the tables rely on follwing the schema very closely, here is the schema for this example
@@ -47,10 +48,9 @@ Columns in User
 		email:String,
 		bannerID: i32
 	}
-	//Even though it is not in the struct, it should still be in UserFields so mySQL knows what the key is called
+	
 	#[derive(PartialEq, Clone, Copy, Debug)]
 	enum UserFields {
-		userID,
 		firstname,
 		lastname,
 		email,
@@ -63,7 +63,6 @@ Columns in User
 
 		fn from_str(s: &str) -> Result<Self, Self::Err> {
 			match s {
-				"userID" 	=> Ok(UserFields::userID),
 				"firstname"	=> Ok(UserFields::firstname),
 				"lastname"	=> Ok(UserFields::lastname),
 				"email"		=> Ok(UserFields::email),
@@ -75,7 +74,6 @@ Columns in User
 	impl Display for UserFields {
 		fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 			match self {
-				UserFields::userID		=>write!(f,"userID"),
 				UserFields::firstname	=>write!(f,"firstname"),
 				UserFields::lastname	=>write!(f,"lastname"),
 				UserFields::email		=>write!(f,"email"),
@@ -112,7 +110,6 @@ Columns in User
 		}
 		fn get_field_names() -> Vec<Self::FieldNames>{
 			vec![
-				UserFields::userID,
 				UserFields::firstname,
 				UserFields::lastname,
 				UserFields::email,
@@ -140,68 +137,23 @@ Columns in User
 	}
 
 	#[test]
-	fn simple_mysql_test(){
-		println!("enter username: ");
-		let mut user = String::new();
-		io::stdin().read_line(&mut user).expect("Failed to read line");
-		println!("{}'s password: ",user);
-		let pass = rpassword::read_password().unwrap();
-		let pool = my_types::open_mysql(user,pass).unwrap();//Open mySQL
-	
-		let fieldvec = vec![
-			UserFields::firstname,
-			UserFields::lastname,
-			UserFields::email,
-			UserFields::bannerID
-		];//Create a Vec<String> for the fields
-		let mut user_table: my_types::MysqlTable<User>= my_types::MysqlTable {
-			tb_name: "User".to_string(),
-			db_name: "dbTest".to_string(),
-			key_name: UserFields::userID,
-			pool:pool, 
-			field: fieldvec,
-		};
-		assert_eq!(user_table.field[0].to_string(),"firstname");
-		//Create a student to send to the database
-		//All strings in the user must have a \' to indicate to mySQL that it is indeed a string
-		let nick_kz = User{
-			firstname:"Nick".to_string(),
-			lastname:"Kluzynski".to_string(),
-			email: "kluzynskn6@students.rowan.edu".to_string(),
-			bannerID: 916181533,
-			
-		};
-		let nick_key:my_types::MysqlTableKey = Some(user_table.insert(nick_kz)).unwrap();
-		assert!(nick_key.valid);
-	
-		let _nick_del = user_table.remove(nick_key).unwrap();//Delete Nick from db so it doesn't get clogged
-	
-	}
-	
-	
-	#[test]
 	fn full_mysql_test(){
 		println!("enter username: ");
 		let mut user = String::new();
 		io::stdin().read_line(&mut user).expect("Failed to read line");
+		user = user.trim().to_string();
 		println!("{}'s password: ",user);
-		let pass = rpassword::read_password().unwrap();
+		let pass = rpassword::read_password().unwrap().trim().to_string();
 		let pool = my_types::open_mysql(user,pass).unwrap();//Open mySQL
 	
-		let fieldvec = vec![
-			UserFields::firstname,
-			UserFields::lastname,
-			UserFields::email,
-			UserFields::bannerID
-		];//Create a Vec<String> for the fields
 		let mut user_table: my_types::MysqlTable<User>= my_types::MysqlTable {
 			tb_name: "User".to_string(),
 			db_name: "dbTest".to_string(),
-			key_name: UserFields::userID,
+			key_name: "userID".to_string(),
 			pool:pool, 
-			field: fieldvec,
+			phantom: PhantomData,
 		};
-		assert_eq!(user_table.field[0].to_string(),"firstname");
+	
 		//Create a student to send to the database
 		let nick_kz = User{
 			firstname:"Nick".to_string(),
@@ -218,7 +170,7 @@ Columns in User
 			bannerID: 916181533,
 			
 		};
-
+		//Testing basic functions
 		let nick_key:my_types::MysqlTableKey = Some(user_table.insert(nick_kz)).unwrap();
 		assert!(nick_key.valid);
 		
@@ -234,6 +186,21 @@ Columns in User
 		let nick_3 = user_table.search(UserFields::firstname,interface::Value::String("\'Nicholas\'".to_string())).unwrap()[0].to_owned().1;//Only saves the entry of the first result
 		assert_eq!(nick_3.lastname,"Kluzynski");
 
+		//Testing query
+		let q_nick = user_table.query(interface::QueryType::Lookup,Some(nick_key)).unwrap();
+		assert_eq!(q_nick[0].1.firstname,"Nicholas");
+		
+		let q_parsearch = user_table.query(interface::QueryType::PartialSearch(UserFields::email,interface::Value::String("@".to_string()),2,UserFields::firstname, interface::SortDirection::Asc, 1),None).unwrap();
+		assert_eq!(q_parsearch.len(),2);
+		
+		let q_all = user_table.query(interface::QueryType::GetAll(3,UserFields::firstname, interface::SortDirection::Asc, 1),None).unwrap();
+		assert_eq!(q_all.len(),3);
+
+		let field_vec = vec!(UserFields::firstname, UserFields::lastname);
+		let val_vec = vec!(interface::Value::String("Nick".to_string()),interface::Value::String("Kluzynski".to_string()));
+		let q_multi = user_table.query(interface::QueryType::MultiSearch(field_vec, val_vec,2,UserFields::bannerID,interface::SortDirection::Asc,1),None).unwrap();
+		assert_eq!(q_multi[0].1.firstname, "Nick");
+		
 		let _nick_del = user_table.remove(nick_key).unwrap();//Delete Nick from db so it doesn't get clogged
 
 	}
