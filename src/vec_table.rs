@@ -1,9 +1,8 @@
-
 use interface::Entry;
 use interface::Key;
+use interface::QueryType;
 use interface::Table;
 use interface::Value;
-use interface::QueryType;
 
 /**
  *  A key for a VecTable
@@ -16,7 +15,7 @@ pub struct VecTableKey {
     id: usize,
 }
 
-impl<E: Entry> Key<E> for VecTableKey { }
+impl<E: Entry> Key<E> for VecTableKey {}
 
 /**
  *  A table implemented as a vector. Inserting will add to the end of the vector, and keys are the
@@ -30,7 +29,6 @@ pub struct VecTable<E: Entry> {
 }
 
 impl<E: Entry> VecTable<E> {
-
     /**
      *  Gives a new `VecTable` with an empty vector
      */
@@ -43,11 +41,10 @@ impl<E: Entry> VecTable<E> {
 }
 
 impl<E: Entry> Table<E> for VecTable<E> {
-
     type Key = VecTableKey;
 
     fn insert(&mut self, entry: E) -> Self::Key {
-		self.vector.push((self.next_key, entry));
+        self.vector.push((self.next_key, entry));
         let key = VecTableKey { id: self.next_key };
         self.next_key += 1;
         key
@@ -56,49 +53,58 @@ impl<E: Entry> Table<E> for VecTable<E> {
     fn lookup(&self, key: Self::Key) -> Option<E> {
         for (k, e) in &self.vector {
             if key.id == *k {
-                return Some(e.clone())
+                return Some(e.clone());
             }
         }
 
         None
     }
 
-	fn update(&self, _key: Self::Key, _entry: E)-> Result<(), String>{
-		unimplemented!();
-	}
-	fn query(&self, _q: QueryType<E>,  _key: Option<Self::Key>) -> Result<Vec<(Self::Key, E)>,String>{
-		unimplemented!();
-	}
-	
-    fn search(&self, field_name: E::FieldNames, field_value: Value) -> Result<Vec<(Self::Key, E)>,String> {
-		let mut good_value:bool = true;
-		let temp = self.vector.iter().fold(Vec::new(), |mut v, (id, e)| {
+    fn update(&self, _key: Self::Key, _entry: E) -> Result<(), String> {
+        unimplemented!();
+    }
+    fn query(
+        &self,
+        _q: QueryType<E>,
+        _key: Option<Self::Key>,
+    ) -> Result<Vec<(Self::Key, E)>, String> {
+        unimplemented!();
+    }
+
+    fn search(
+        &self,
+        field_name: E::FieldNames,
+        field_value: Value,
+    ) -> Result<Vec<(Self::Key, E)>, String> {
+        let mut good_value: bool = true;
+        let temp = self.vector.iter().fold(Vec::new(), |mut v, (id, e)| {
             if let Some(value) = e.get_field(field_name) {
                 if value == field_value {
-                    v.push((VecTableKey{id: *id}, e.clone()));
+                    v.push((VecTableKey { id: *id }, e.clone()));
                 }
-            }else{
-					good_value = false;
-			}
-			v
+            } else {
+                good_value = false;
+            }
+            v
         });
-		if good_value ==true{
-			Ok(temp)
-		}
-		else{
-			Err("Error converting vec in vectable".to_string())
-		}
+        if good_value == true {
+            Ok(temp)
+        } else {
+            Err("Error converting vec in vectable".to_string())
+        }
     }
 
     fn remove(&mut self, key: Self::Key) -> Result<(), String> {
-        let index = self.vector.iter().fold(None, |i, (id, _e)| {
-            if *id == key.id {
-                Some(*id)
-            } else {
-                i
-            }
-        });
-
+        let index = self.vector.iter().fold(
+            None,
+            |i, (id, _e)| {
+                if *id == key.id {
+                    Some(*id)
+                } else {
+                    i
+                }
+            },
+        );
 
         if let Some(index) = index {
             self.vector.remove(index);
@@ -116,12 +122,12 @@ impl<E: Entry> Table<E> for VecTable<E> {
 #[cfg(test)]
 mod tests {
 
-    use tests::Department;
-    use tests::DepartmentFields;
     use interface::Table;
     use interface::Value;
-    use vec_table::VecTableKey;
+    use tests::Department;
+    use tests::DepartmentFields;
     use vec_table::VecTable;
+    use vec_table::VecTableKey;
 
     #[test]
     fn test_vectable_key_partial_eq() {
@@ -133,7 +139,6 @@ mod tests {
 
     #[test]
     fn test_vectable() {
-
         let mut department_table: VecTable<Department> = VecTable::new();
 
         let ece_department = Department {
@@ -145,13 +150,15 @@ mod tests {
 
         let ece_department_after = department_table.lookup(ece_key).unwrap();
 
-        assert_eq!(ece_department_after.name, "Electrical and Computer Engineering".to_string());
+        assert_eq!(
+            ece_department_after.name,
+            "Electrical and Computer Engineering".to_string()
+        );
         assert_eq!(ece_department_after.abreviation, "ECE".to_string());
     }
 
     #[test]
     fn test_search() {
-
         let mut department_table: VecTable<Department> = VecTable::new();
 
         let ece_key = department_table.insert(Department {
@@ -164,17 +171,20 @@ mod tests {
             abreviation: "ME".to_string(),
         });
 
-        let (found_key, _found_entry) = department_table.search(
-            DepartmentFields::Abreviation,
-            Value::String("ECE".to_string())
-        ).unwrap().pop().unwrap();
+        let (found_key, _found_entry) = department_table
+            .search(
+                DepartmentFields::Abreviation,
+                Value::String("ECE".to_string()),
+            )
+            .unwrap()
+            .pop()
+            .unwrap();
 
         assert_eq!(ece_key, found_key);
     }
 
     #[test]
     fn test_vectable_contains() {
-
         let mut department_table: VecTable<Department> = VecTable::new();
 
         let ece_key = department_table.insert(Department {
@@ -193,7 +203,6 @@ mod tests {
 
     #[test]
     fn test_vectable_remove() {
-
         let mut department_table: VecTable<Department> = VecTable::new();
 
         let ece_key = department_table.insert(Department {

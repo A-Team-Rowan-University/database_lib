@@ -3,13 +3,13 @@
 //! This is used by tests in the crate. Otherwise, there would be nothing to use in tests.
 //!
 
-use std::fmt::Display;
 use std::fmt;
+use std::fmt::Display;
 use std::str::FromStr;
 
 use interface::Entry;
-use interface::Value;
 use interface::FieldName;
+use interface::Value;
 
 /**
  *  Test entry with no keys for anything
@@ -23,7 +23,7 @@ pub struct Department {
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub enum DepartmentFields {
     Name,
-    Abreviation
+    Abreviation,
 }
 
 impl FieldName for DepartmentFields {
@@ -62,7 +62,6 @@ impl FromStr for DepartmentFields {
 }
 
 impl Entry for Department {
-
     type FieldNames = DepartmentFields;
 
     fn from_fields(values: &[Value]) -> Result<Self, String> {
@@ -85,7 +84,10 @@ impl Entry for Department {
     }
 
     fn get_fields(&self) -> Vec<Value> {
-        vec![Value::String(self.name.clone()), Value::String(self.abreviation.clone())]
+        vec![
+            Value::String(self.name.clone()),
+            Value::String(self.abreviation.clone()),
+        ]
     }
 
     fn get_field(&self, field_name: DepartmentFields) -> Option<Value> {
@@ -120,12 +122,15 @@ mod department_tests {
     fn test_department_from_fields() {
         let fields = [
             Value::String("Electrical and Computer Engineering".to_string()),
-            Value::String("ECE".to_string())
+            Value::String("ECE".to_string()),
         ];
 
         let department = Department::from_fields(&fields).unwrap();
 
-        assert_eq!(department.name, "Electrical and Computer Engineering".to_string());
+        assert_eq!(
+            department.name,
+            "Electrical and Computer Engineering".to_string()
+        );
         assert_eq!(department.abreviation, "ECE".to_string());
     }
 
@@ -147,7 +152,10 @@ mod department_tests {
 
         let fields = department.get_fields();
 
-        assert_eq!(fields[0], Value::String("Electrical and Computer Engineering".to_string()));
+        assert_eq!(
+            fields[0],
+            Value::String("Electrical and Computer Engineering".to_string())
+        );
         assert_eq!(fields[1], Value::String("ECE".to_string()));
         assert_eq!(fields.len(), 2);
     }
@@ -161,10 +169,14 @@ mod department_tests {
 
         let first_name = department.get_field(DepartmentFields::Name);
 
-        assert_eq!(first_name, Some(Value::String("Electrical and Computer Engineering".to_string())));
+        assert_eq!(
+            first_name,
+            Some(Value::String(
+                "Electrical and Computer Engineering".to_string()
+            ))
+        );
     }
 }
-
 
 /**
  *  Test entry with a key
@@ -205,7 +217,6 @@ impl FromStr for UserFields {
 }
 
 impl Entry for User {
-
     type FieldNames = UserFields;
 
     fn from_fields(values: &[Value]) -> Result<Self, String> {
@@ -228,7 +239,10 @@ impl Entry for User {
     }
 
     fn get_fields(&self) -> Vec<Value> {
-        vec![Value::String(self.first_name.clone()), Value::String(self.last_name.clone())]
+        vec![
+            Value::String(self.first_name.clone()),
+            Value::String(self.last_name.clone()),
+        ]
     }
 
     fn get_field(&self, field_name: UserFields) -> Option<Value> {
@@ -263,7 +277,7 @@ mod user_tests {
     fn test_user_from_fields() {
         let fields = [
             Value::String("Tim".to_string()),
-            Value::String("Hollabaugh".to_string())
+            Value::String("Hollabaugh".to_string()),
         ];
 
         let user = User::from_fields(&fields).unwrap();
