@@ -137,6 +137,7 @@ Columns in User
 	}
 
 	#[test]
+    #[ignore]
 	fn full_mysql_test(){
 		println!("enter username: ");
 		let mut user = String::new();
