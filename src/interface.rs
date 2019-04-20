@@ -15,7 +15,7 @@ pub trait ITryInto<T> {
     fn itry_into(self) -> Result<T, String>;
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, PartialOrd, Debug, Clone)]
 pub enum Value {
     Integer(i32),
     Float(f32),
@@ -194,7 +194,7 @@ pub trait Table<E: Entry> {
     ) -> Result<Vec<(Self::Key, E)>, String>;
 
     /// Update an entry at a given key with a new entry
-    fn update(&self, key: Self::Key, entry: E) -> Result<(), String>;
+    fn update(&mut self, key: Self::Key, entry: E) -> Result<(), String>;
 
     /// Removes the entry for the given key in the table. Returns an Ok(()) if successfull,
     /// but an Err(String) is the key could not be found, with an error message in the string.

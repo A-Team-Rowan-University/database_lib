@@ -198,7 +198,7 @@ impl<E: Entry> Table<E> for MysqlTable<E> {
             Err(y) => Err(y.to_string()),
         }
     }
-    fn update(&self, key: Self::Key, entry: E) -> Result<(), String> {
+    fn update(&mut self, key: Self::Key, entry: E) -> Result<(), String> {
         //UPDATE tb_name SET field 1= entry 1, field 2 = entry 2, ... WHERE id = key
         //Always start with opening mysql
         //Opening mysql will never panic if done with the openmysql function
